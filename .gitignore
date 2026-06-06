@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.sublime-workspace
+*.sublime-project
+easybuy.db
