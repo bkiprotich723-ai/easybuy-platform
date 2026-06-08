@@ -365,7 +365,6 @@ const s = {
     avatar: { width: 32, height: 32, borderRadius: '50%', background: '#2d3a5c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#7c9ef7' },
     logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
     tabBar: { background: '#161b27', borderBottom: '0.5px solid #2d3348', display: 'flex', padding: '0 24px', gap: 4 },
-    tab: { padding: '14px 16px', fontSize: 13, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent' },
     tabActive: { color: '#e2e8f0', borderBottom: '2px solid #7c6ef7' },
     content: { padding: 24 },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, marginTop: 8 },
