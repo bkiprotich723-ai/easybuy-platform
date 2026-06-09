@@ -357,7 +357,7 @@ export default function BuyerDashboard() {
 }
 
 const s = {
-    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' },
+    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0', width: '100%', overflowX: 'hidden' },
     nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 24px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     logo: { color: '#7c6ef7', fontSize: 20, fontWeight: 600 },
     navRight: { display: 'flex', alignItems: 'center', gap: 12 },
@@ -368,7 +368,7 @@ const s = {
     tabActive: { color: '#e2e8f0', borderBottom: '2px solid #7c6ef7' },
     content: { padding: 24 },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, marginTop: 8 },
-    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 32 },
+   productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 32 },
     productCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, overflow: 'hidden' },
     productImg: { background: '#1a1f35', height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 },
     productInfo: { padding: '12px 14px' },

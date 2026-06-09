@@ -293,13 +293,14 @@ export default function AdminDashboard() {
 }
 
 const s = {
-    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' },
+    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' , width: '100%', overflowX: 'hidden'},
     nav: { background: '#0c0f1a', borderBottom: '0.5px solid #1e2535', padding: '0 24px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     logo: { color: '#f97066', fontSize: 20, fontWeight: 600 },
     navRight: { display: 'flex', alignItems: 'center', gap: 12 },
     logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
-    layout: { display: 'flex', minHeight: 'calc(100vh - 54px)' },
-    sidebar: { width: 200, background: '#0c0f1a', borderRight: '0.5px solid #1e2535', padding: '16px 0' },
+    layout: { display: 'flex', minHeight: 'calc(100vh - 54px)', width: '100%' },
+sidebar: { width: 160, minWidth: 160, background: '#0c0f1a', borderRight: '0.5px solid #1e2535', padding: '16px 0', flexShrink: 0 },
+main: { flex: 1, padding: 24, minWidth: 0 },
     sideItem: { padding: '10px 20px', fontSize: 14, color: '#8892a4', cursor: 'pointer', textTransform: 'capitalize', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
 badge2: { background: '#f97066', color: '#fff', fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20, minWidth: 20, textAlign: 'center' },
     sideActive: { color: '#e2e8f0', background: '#161b27', borderLeft: '2px solid #f97066' },

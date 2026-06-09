@@ -398,7 +398,7 @@ export default function SellerDashboard() {
 }
 
 const s = {
-    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' },
+    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' , width: '100%', overflowX: 'hidden' },
     nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 24px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     logo: { color: '#5dd6a3', fontSize: 20, fontWeight: 600 },
     navRight: { display: 'flex', alignItems: 'center', gap: 12 },

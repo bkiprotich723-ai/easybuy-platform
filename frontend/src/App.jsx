@@ -11,8 +11,9 @@ import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
     return (
-        <AuthProvider>
-            <BrowserRouter>
+    <AuthProvider>
+        <BrowserRouter>
+            <div style={{width:'100%', overflowX:'hidden'}}>
                 <Routes>
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login />} />
@@ -35,7 +36,7 @@ export default function App() {
                             <AdminDashboard />
                         </PrivateRoute>
                     } />
-                </Routes>
+                </Routes> </div>
             </BrowserRouter>
         </AuthProvider>
     );
