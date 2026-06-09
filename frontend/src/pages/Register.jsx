@@ -23,10 +23,10 @@ export default function Register() {
     };
 
     const roles = [
-        { value: 'buyer', label: 'Buyer', desc: 'Shop products' },
-        { value: 'seller', label: 'Seller', desc: 'Sell & earn 90%' },
-        { value: 'affiliate', label: 'Affiliate', desc: 'Earn 10% referrals' },
-    ];
+    { value: 'buyer', label: 'Buyer', desc: 'Shop products', fee: null },
+    { value: 'seller', label: 'Seller', desc: 'Sell & earn 90%', fee: 100 },
+    { value: 'affiliate', label: 'Affiliate', desc: 'Earn 10% commission', fee: 100 },
+];
 
     return (
         <div style={styles.page}>
@@ -35,19 +35,23 @@ export default function Register() {
                 <h3 style={styles.title}>Create your account</h3>
                 <p style={styles.sub}>Join thousands of Kenyans on EasyBuy</p>
 
-                <div style={styles.roleRow}>
-                    {roles.map(r => (
-                        <div
-                            key={r.value}
-                            style={{ ...styles.roleTab, ...(form.role === r.value ? styles.roleTabActive : {}) }}
-                            onClick={() => setForm({...form, role: r.value})}
-                        >
-                            <div style={styles.roleLabel}>{r.label}</div>
-                            <div style={styles.roleDesc}>{r.desc}</div>
-                        </div>
-                    ))}
-                </div>
+                <div style={s.roleRow}>
+    {roles.map(r => (
+        <div key={r.value}
+            style={{...s.roleTab, ...(form.role === r.value ? s.roleActive : {})}}
+            onClick={() => setForm({...form, role: r.value})}>
+            <div style={s.roleLabel}>{r.label}</div>
+            <div style={s.roleDesc}>{r.desc}</div>
+            {r.fee && <div style={s.roleFee}>KES {r.fee} fee</div>}
+        </div>
+    ))}
+</div>
 
+                {(form.role === 'seller' || form.role === 'affiliate') && (
+    <div style={s.feeNotice}>
+        💳 A registration fee of <b>KES 100</b> will be charged to your wallet. Your wallet will start at <b>-KES 100</b> and you'll need to deposit to bring it to zero before withdrawing.
+    </div>
+)}
                 {error && <div style={styles.error}>{error}</div>}
 
                 <form onSubmit={handleSubmit}>
@@ -96,4 +100,6 @@ const styles = {
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 16 },
     footer: { color: '#5a6480', fontSize: 13, textAlign: 'center', marginTop: 18 },
     link: { color: '#a89cf7', textDecoration: 'none' }
+    roleFee: { color: '#f7c948', fontSize: 11, marginTop: 4, fontWeight: 600 },
+feeNotice: { background: '#2a1f08', border: '0.5px solid #4a3510', color: '#f7c948', borderRadius: 8, padding: '10px 12px', fontSize: 13, marginBottom: 16, lineHeight: 1.6 },
 };

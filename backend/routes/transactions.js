@@ -74,17 +74,50 @@ await client.query(
         );
 
         // 4. Referral commission (10%)
-        const buyerResult = await client.query(
-            "SELECT referred_by FROM users WHERE id = $1",
-            [buyer_id]
-        );
-        const buyer = buyerResult.rows[0];
+        // 4. Referral commission (10%) on purchase
+const buyerResult = await client.query(
+    "SELECT referred_by FROM users WHERE id = $1",
+    [buyer_id]
+);
+const buyer = buyerResult.rows[0];
 
-        if (buyer?.referred_by) {
-            const referrerResult = await client.query(
-                "SELECT id FROM users WHERE referral_code = $1",
-                [buyer.referred_by]
+if (buyer?.referred_by) {
+    const referrerResult = await client.query(
+        "SELECT id, role FROM users WHERE referral_code = $1",
+        [buyer.referred_by]
+    );
+    const referrer = referrerResult.rows[0];
+
+    if (referrer) {
+        const commission = amount * 0.10;
+
+        // Ensure wallet exists
+        const walletCheck = await client.query(
+            "SELECT id FROM wallets WHERE user_id = $1",
+            [referrer.id]
+        );
+
+        if (!walletCheck.rows[0]) {
+            await client.query(
+                "INSERT INTO wallets (user_id, balance) VALUES ($1, 0)",
+                [referrer.id]
             );
+        }
+
+        // Credit commission
+        await client.query(
+            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+            [commission, referrer.id]
+        );
+
+        // Log commission
+        await client.query(
+            `INSERT INTO wallet_transactions (user_id, type, amount, description)
+             VALUES ($1, 'commission', $2, $3)`,
+            [referrer.id, commission, `10% commission from order #${orderId}`]
+        );
+    }
+}
             const referrer = referrerResult.rows[0];
 
             if (referrer) {
