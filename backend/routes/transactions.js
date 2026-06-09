@@ -32,6 +32,27 @@ router.post("/buy", async (req, res) => {
             [buyer_id, product_id, amount]
         );
         const orderId = orderResult.rows[0].id;
+        // 2b. Deduct from buyer wallet
+const buyerWallet = await client.query(
+    "SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE",
+    [buyer_id]
+);
+
+if (!buyerWallet.rows[0] || parseFloat(buyerWallet.rows[0].balance) < parseFloat(amount)) {
+    await client.query("ROLLBACK");
+    return res.status(400).json({ message: "Insufficient wallet balance" });
+}
+
+await client.query(
+    "UPDATE wallets SET balance = balance - $1 WHERE user_id = $2",
+    [amount, buyer_id]
+);
+
+await client.query(
+    `INSERT INTO wallet_transactions (user_id, type, amount, description)
+     VALUES ($1, 'purchase', $2, $3)`,
+    [buyer_id, -amount, `Purchase of product #${product_id}`]
+);
 
         // 3. Seller earnings (90%) — record + credit wallet + log
         const sellerAmount = amount * 0.90;
