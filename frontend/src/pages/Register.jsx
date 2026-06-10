@@ -13,8 +13,12 @@ export default function Register() {
         setLoading(true);
         setError('');
         try {
-            await API.post('/api/auth/register', form);
-            navigate('/login');
+          const payload = { ...form };
+if (form.role === 'affiliate' || form.role === 'seller') {
+    payload.payment_confirmed = true;
+}
+await API.post('/api/auth/register', payload);
+navigate('/login');  
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
         } finally {
