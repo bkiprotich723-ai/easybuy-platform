@@ -399,7 +399,7 @@ const s = {
     walletBal: { fontSize: 36, fontWeight: 700, color: '#7c6ef7' },
     success: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
-    twoColWallet: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+    twoColWallet: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 },
     tab: { padding: '14px 16px', fontSize: 13, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent', display: 'flex', alignItems: 'center', gap: 6 },
 tabBadge: { background: '#f97066', color: '#fff', fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 20, minWidth: 18, textAlign: 'center' },
 };
