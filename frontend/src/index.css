@@ -1,20 +1,40 @@
-* {
+*, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    max-width: 100%;
 }
 
-html, body {
-    width: 100%;
+html {
     overflow-x: hidden;
+    width: 100%;
+}
+
+body {
+    overflow-x: hidden;
+    width: 100%;
+    min-height: 100vh;
     background: #0f1117;
+    position: relative;
 }
 
 #root {
-    width: 100%;
     overflow-x: hidden;
+    width: 100%;
 }
 
 input, button, select, textarea {
     font-family: sans-serif;
+    max-width: 100%;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
 }
