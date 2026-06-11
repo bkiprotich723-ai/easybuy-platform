@@ -21,6 +21,9 @@ export default function App() {
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    import AffiliateDashboard from './pages/AffiliateDashboard';
+// inside <Routes>:
+<Route path="/affiliate" element={<AffiliateDashboard />} />
                     <Route path="/product/:id" element={
     <PrivateRoute roles={['buyer', 'seller', 'admin']}>
         <ProductDetail />

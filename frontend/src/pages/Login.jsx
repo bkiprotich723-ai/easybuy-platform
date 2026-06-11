@@ -21,6 +21,7 @@ export default function Login() {
             const role = res.data.user.role;
             if (role === 'admin') navigate('/admin');
             else if (role === 'seller') navigate('/seller');
+            else if (role === 'affiliate') navigate('/affiliate');
             else navigate('/buyer');
 
         } catch (err) {

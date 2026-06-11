@@ -17,7 +17,9 @@ const reviewRoutes = require("./routes/reviews");
 const supportRoutes = require("./routes/support");
 const cartRoutes = require("./routes/cart");
 const profileRoutes = require("./routes/profile");
+const affiliateRoutes = require("./routes/affiliate");
 const app = express();
+
 
 app.use(cors());
 app.use(express.json());
@@ -37,6 +39,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/support", verifyToken, supportRoutes);
 app.use("/api/cart", verifyToken, cartRoutes);
 app.use("/api/profile", verifyToken, profileRoutes);
+app.use("/api/affiliate", verifyToken, affiliateRoutes);
 app.get("/", (req, res) => {
     res.send("EasyBuy API is running 🚀");
 });
