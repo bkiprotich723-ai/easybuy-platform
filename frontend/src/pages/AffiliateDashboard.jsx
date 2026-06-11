@@ -13,6 +13,7 @@ export default function AffiliateDashboard() {
     const [withdrawing, setWithdrawing] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         fetchDashboard();
     }, []);
