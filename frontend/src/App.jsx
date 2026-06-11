@@ -8,6 +8,9 @@ import Register from './pages/Register';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ProductDetail from './pages/ProductDetail';
+import Profile from './pages/Profile';
+import Cart from './pages/Cart';
 
 export default function App() {
     return (
@@ -18,7 +21,23 @@ export default function App() {
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/product/:id" element={
+    <PrivateRoute roles={['buyer', 'seller', 'admin']}>
+        <ProductDetail />
+    </PrivateRoute>
+} />
 
+<Route path="/profile" element={
+    <PrivateRoute roles={['buyer', 'seller', 'admin']}>
+        <Profile />
+    </PrivateRoute>
+} />
+
+<Route path="/cart" element={
+    <PrivateRoute roles={['buyer']}>
+        <Cart />
+    </PrivateRoute>
+} />
                     <Route path="/buyer" element={
                         <PrivateRoute roles={['buyer']}>
                             <BuyerDashboard />

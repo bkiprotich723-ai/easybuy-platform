@@ -7,7 +7,7 @@ const router = express.Router();
 // CREATE PRODUCT (SELLER ONLY)
 router.post("/add", verifyToken, async (req, res) => {
     const seller_id = req.user.id;
-    const { name, description, price, image } = req.body;
+    const { name, description, price, image, stock, category, specifications } = req.body;
 
     if (!name || !price) {
         return res.status(400).json({ message: "Name and price are required" });
@@ -19,10 +19,10 @@ router.post("/add", verifyToken, async (req, res) => {
 
     try {
         const result = await db.query(
-            `INSERT INTO products (seller_id, name, description, price, image)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO products (seller_id, name, description, price, image, stock, category, specifications)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id`,
-            [seller_id, name, description, price, image]
+            [seller_id, name, description, price, image, stock || 0, category || 'general', specifications || '']
         );
 
         res.json({
@@ -68,10 +68,25 @@ router.get("/top-products", verifyToken, async (req, res) => {
     }
 });
 
-// GET ALL PRODUCTS (PUBLIC)
+// GET ALL PRODUCTS (PUBLIC) with search and category filter
 router.get("/", async (req, res) => {
+    const { search, category } = req.query;
     try {
-        const result = await db.query("SELECT * FROM products");
+        let query = "SELECT * FROM products WHERE 1=1";
+        const params = [];
+
+        if (search) {
+            params.push(`%${search}%`);
+            query += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length})`;
+        }
+
+        if (category && category !== 'all') {
+            params.push(category);
+            query += ` AND category = $${params.length}`;
+        }
+
+        query += " ORDER BY created_at DESC";
+        const result = await db.query(query, params);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -98,12 +113,12 @@ router.get("/:id", async (req, res) => {
 });
 // UPDATE PRODUCT (SELLER)
 router.put("/:id", verifyToken, async (req, res) => {
-    const { name, description, price, image, stock } = req.body;
+    const { name, description, price, image, stock, category, specifications } = req.body;
     try {
         await db.query(
-            `UPDATE products SET name=$1, description=$2, price=$3, image=$4, stock=$5
-             WHERE id=$6 AND seller_id=$7`,
-            [name, description, price, image, stock, req.params.id, req.user.id]
+            `UPDATE products SET name=$1, description=$2, price=$3, image=$4, stock=$5, category=$6, specifications=$7
+             WHERE id=$8 AND seller_id=$9`,
+            [name, description, price, image, stock, category || 'general', specifications || '', req.params.id, req.user.id]
         );
         res.json({ message: "Product updated successfully" });
     } catch (err) {
