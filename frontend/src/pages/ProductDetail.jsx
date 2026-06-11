@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
+
 
 export default function ProductDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
     const [product, setProduct] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        fetchProduct();
-        fetchReviews();
-    }, [id]);
+    fetchProduct();
+    fetchReviews();
+}, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchProduct = async () => {
         try {

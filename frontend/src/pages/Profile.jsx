@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 
 export default function Profile() {
-    const { user, logout } = useAuth();
+    const { logout } = useAuth();
     const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
     const [form, setForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });

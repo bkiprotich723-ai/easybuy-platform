@@ -22,16 +22,15 @@ export default function BuyerDashboard() {
     const categories = ['all', 'smartphones', 'laptops', 'tvs', 'boutique', 'appliances', 'furniture', 'general'];
 
     useEffect(() => {
-        fetchProducts();
-        fetchOrders();
-        fetchWallet();
-        fetchTickets();
-        fetchCartCount();
-    }, []);
+    fetchOrders();
+    fetchWallet();
+    fetchTickets();
+    fetchCartCount();
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => {
-        fetchProducts();
-    }, [search, category]);
+useEffect(() => {
+    fetchProducts();
+}, [search, category]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchProducts = async () => {
         try {
