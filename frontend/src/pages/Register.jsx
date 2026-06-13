@@ -1,35 +1,53 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import API from '../api/axios';
 
 export default function Register() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '', role: 'buyer', referral_code: '' });
+    const [searchParams] = useSearchParams();
+
+    // Check ?ref= in URL first, then fall back to localStorage (set when they landed on a promo link)
+    const refFromUrl = searchParams.get('ref') || '';
+    const refFromStorage = localStorage.getItem('pending_ref') || '';
+    const initialRef = refFromUrl || refFromStorage;
+
+    const [form, setForm] = useState({
+        name: '', email: '', password: '', role: 'buyer',
+        referral_code: initialRef,
+    });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Keep form in sync if URL param changes
+    useEffect(() => {
+        const ref = searchParams.get('ref') || localStorage.getItem('pending_ref') || '';
+        if (ref) setForm(f => ({ ...f, referral_code: ref }));
+    }, [searchParams]);
+
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (form.password !== form.confirm_password) {
-        setError('Passwords do not match');
-        return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-        await API.post('/api/auth/register', form);
-        navigate('/login');
-    } catch (err) {
-        setError(err.response?.data?.message || 'Registration failed');
-    } finally {
-        setLoading(false);
-    }
-};
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            const payload = { ...form };
+            if (form.role === 'affiliate' || form.role === 'seller') {
+                payload.payment_confirmed = true;
+            }
+            await API.post('/api/auth/register', payload);
+            // Clear stored ref after successful registration
+            localStorage.removeItem('pending_ref');
+            navigate('/login');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Registration failed');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const roles = [
         { value: 'buyer', label: 'Buyer', desc: 'Shop products', fee: null },
         { value: 'seller', label: 'Seller', desc: 'Sell & earn 90%', fee: 100 },
-        { value: 'affiliate', label: 'Affiliate', desc: 'Earn 10% commission', fee: 100 },
+        { value: 'affiliate', label: 'Affiliate', desc: 'Earn commissions', fee: 100 },
     ];
 
     return (
@@ -53,7 +71,8 @@ export default function Register() {
 
                 {(form.role === 'seller' || form.role === 'affiliate') && (
                     <div style={styles.feeNotice}>
-                        💳 A registration fee of <b>KES 100</b> will be charged to your wallet. Your wallet will start at <b>-KES 100</b> and you'll need to deposit to bring it to zero before withdrawing.
+                        💳 A registration fee of <b>KES 100</b> will be charged to your wallet.
+                        Your wallet will start at <b>-KES 100</b> and you'll need to deposit to bring it to zero before withdrawing.
                     </div>
                 )}
 
@@ -71,14 +90,22 @@ export default function Register() {
                     <label style={styles.label}>Password</label>
                     <input style={styles.input} type="password" placeholder="••••••••" value={form.password}
                         onChange={e => setForm({...form, password: e.target.value})} required />
-                    <label style={styles.label}>Confirm password</label>
-                    <input style={styles.input} type="password" placeholder="••••••••" value={form.confirm_password}
-                        onChange={e => setForm({...form, confirm_password: e.target.value})} required />
 
-
-                    <label style={styles.label}>Referral code <span style={{color:'#5a6480'}}>(optional)</span></label>
-                    <input style={styles.input} placeholder="e.g. REF1717820044" value={form.referral_code}
-                        onChange={e => setForm({...form, referral_code: e.target.value})} />
+                    <label style={styles.label}>
+                        Referral code <span style={{color:'#5a6480'}}>(optional)</span>
+                    </label>
+                    <input
+                        style={{
+                            ...styles.input,
+                            ...(form.referral_code ? { borderColor: '#7c6ef7', color: '#a89cf7' } : {})
+                        }}
+                        placeholder="e.g. aB3@kZ9!"
+                        value={form.referral_code}
+                        onChange={e => setForm({...form, referral_code: e.target.value})}
+                    />
+                    {form.referral_code && (
+                        <div style={styles.refApplied}>✅ Referral code applied</div>
+                    )}
 
                     <button style={styles.btn} type="submit" disabled={loading}>
                         {loading ? 'Creating account...' : 'Create account'}
@@ -110,6 +137,7 @@ const styles = {
     input: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '9px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' },
     btn: { width: '100%', background: '#7c6ef7', border: 'none', color: '#fff', padding: 11, borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', marginTop: 4 },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 16 },
+    refApplied: { color: '#6ee7b7', fontSize: 12, marginTop: -10, marginBottom: 14 },
     footer: { color: '#5a6480', fontSize: 13, textAlign: 'center', marginTop: 18 },
     link: { color: '#a89cf7', textDecoration: 'none' },
 };
