@@ -22,7 +22,6 @@ export default function App() {
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
 
-                        {/* Public — promo links must work without login */}
                         <Route path="/product/:id" element={<ProductDetail />} />
 
                         <Route path="/affiliate" element={
@@ -30,26 +29,49 @@ export default function App() {
                                 <AffiliateDashboard />
                             </PrivateRoute>
                         } />
-                        <Route path="/profile" element={
-                            <PrivateRoute roles={['buyer', 'seller', 'admin', 'affiliate']}>
+
+                        <Route path="/buyer/profile" element={
+                            <PrivateRoute roles={['buyer']}>
                                 <Profile />
                             </PrivateRoute>
                         } />
+
+                        <Route path="/seller/profile" element={
+                            <PrivateRoute roles={['seller']}>
+                                <Profile />
+                            </PrivateRoute>
+                        } />
+
+                        <Route path="/admin/profile" element={
+                            <PrivateRoute roles={['admin']}>
+                                <Profile />
+                            </PrivateRoute>
+                        } />
+
+                        <Route path="/affiliate/profile" element={
+                            <PrivateRoute roles={['affiliate']}>
+                                <Profile />
+                            </PrivateRoute>
+                        } />
+
                         <Route path="/cart" element={
                             <PrivateRoute roles={['buyer']}>
                                 <Cart />
                             </PrivateRoute>
                         } />
+
                         <Route path="/buyer" element={
                             <PrivateRoute roles={['buyer']}>
                                 <BuyerDashboard />
                             </PrivateRoute>
                         } />
+
                         <Route path="/seller" element={
                             <PrivateRoute roles={['seller']}>
                                 <SellerDashboard />
                             </PrivateRoute>
                         } />
+
                         <Route path="/admin" element={
                             <PrivateRoute roles={['admin']}>
                                 <AdminDashboard />

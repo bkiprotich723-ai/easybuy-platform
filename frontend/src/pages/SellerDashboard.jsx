@@ -21,8 +21,8 @@ export default function SellerDashboard() {
     const [editProduct, setEditProduct] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [bulkForms, setBulkForms] = useState([{ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
     const [form, setForm] = useState({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
+    const [bulkForms, setBulkForms] = useState([{ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
     const [profile, setProfile] = useState(null);
     const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
@@ -60,7 +60,11 @@ export default function SellerDashboard() {
         try {
             const res = await API.get('/api/profile');
             setProfile(res.data);
-            setProfileForm({ name: res.data.name, profile_picture: res.data.profile_picture || '', mpesa_number: res.data.mpesa_number || '' });
+            setProfileForm({
+                name: res.data.name,
+                profile_picture: res.data.profile_picture || '',
+                mpesa_number: res.data.mpesa_number || ''
+            });
         } catch (err) { console.error(err); }
     };
 
@@ -80,9 +84,9 @@ export default function SellerDashboard() {
                 updated[index].image = json.secure_url;
                 setBulkForms(updated);
             } else {
-                setForm(prev => ({...prev, image: json.secure_url}));
+                setForm(prev => ({ ...prev, image: json.secure_url }));
             }
-        } catch (err) {
+        } catch {
             setMessage('❌ Image upload failed');
         } finally {
             setUploading(false);
@@ -100,8 +104,8 @@ export default function SellerDashboard() {
                 method: 'POST', body: data
             });
             const json = await res.json();
-            setProfileForm(prev => ({...prev, profile_picture: json.secure_url}));
-        } catch (err) {
+            setProfileForm(prev => ({ ...prev, profile_picture: json.secure_url }));
+        } catch {
             setMessage('❌ Image upload failed');
         } finally {
             setUploading(false);
@@ -135,20 +139,6 @@ export default function SellerDashboard() {
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
         }
-    };
-
-    const addBulkRow = () => {
-        setBulkForms([...bulkForms, { name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
-    };
-
-    const removeBulkRow = (index) => {
-        setBulkForms(bulkForms.filter((_, i) => i !== index));
-    };
-
-    const updateBulkRow = (index, field, value) => {
-        const updated = [...bulkForms];
-        updated[index][field] = value;
-        setBulkForms(updated);
     };
 
     const handleEditProduct = async (e) => {
@@ -259,31 +249,42 @@ export default function SellerDashboard() {
         }
     };
 
+    const addBulkRow = () => setBulkForms([...bulkForms, { name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
+    const removeBulkRow = (i) => setBulkForms(bulkForms.filter((_, idx) => idx !== i));
+    const updateBulkRow = (i, field, value) => { const u = [...bulkForms]; u[i][field] = value; setBulkForms(u); };
+
     const tabs = ['dashboard', 'products', 'orders', 'stock', 'withdrawals', 'support', 'profile'];
     const pendingOrders = orders.filter(o => o.status === 'pending');
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
+    const categories = ['general', 'smartphones', 'laptops', 'tvs', 'boutique', 'appliances', 'furniture'];
 
     return (
         <div style={s.page}>
+
+            {/* ── Navbar ── */}
             <div style={s.nav}>
                 <div style={s.logo}>🏪 Seller Hub</div>
                 <div style={s.navRight}>
-                    <button style={s.addBtn} onClick={() => { setShowForm(true); setEditProduct(null); setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }); setActiveTab('products'); }}>
-                        + Add
-                    </button>
-                <div style={s.avatar} onClick={() => setActiveTab('profile')}>
+                    <button style={s.addBtn} onClick={() => {
+                        setShowForm(true);
+                        setEditProduct(null);
+                        setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
+                        setActiveTab('products');
+                    }}>+ Add</button>
+                    <div style={s.avatar} onClick={() => setActiveTab('profile')}>
                         {profileForm.profile_picture
-                        ? <img src={profileForm.profile_picture} alt="profile" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
-                        : user?.name?.charAt(0).toUpperCase()
+                            ? <img src={profileForm.profile_picture} alt="profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            : user?.name?.charAt(0).toUpperCase()
                         }
-        </div>
+                    </div>
                     <button style={s.logoutBtn} onClick={handleLogout}>Log out</button>
                 </div>
             </div>
 
+            {/* ── Tab bar ── */}
             <div style={s.tabBar}>
                 {tabs.map(t => (
-                    <div key={t} style={{...s.tab, ...(activeTab === t ? s.tabActive : {})}}
+                    <div key={t} style={{ ...s.tab, ...(activeTab === t ? s.tabActive : {}) }}
                         onClick={() => setActiveTab(t)}>
                         <span>
                             {t === 'dashboard' && '📊'}
@@ -294,51 +295,41 @@ export default function SellerDashboard() {
                             {t === 'support' && '🎧'}
                             {t === 'profile' && '👤'}
                         </span>
-                        <span style={s.tabLabel}>
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </span>
-                        {t === 'orders' && pendingOrders.length > 0 && (
-                            <span style={s.tabBadge}>{pendingOrders.length}</span>
-                        )}
-                        {t === 'withdrawals' && withdrawals.filter(w => w.status === 'pending').length > 0 && (
-                            <span style={s.tabBadge}>{withdrawals.filter(w => w.status === 'pending').length}</span>
-                        )}
-                        {t === 'support' && tickets.filter(tk => tk.status === 'open').length > 0 && (
-                            <span style={s.tabBadge}>{tickets.filter(tk => tk.status === 'open').length}</span>
-                        )}
+                        <span style={s.tabLabel}>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+                        {t === 'orders' && pendingOrders.length > 0 && <span style={s.tabBadge}>{pendingOrders.length}</span>}
+                        {t === 'withdrawals' && withdrawals.filter(w => w.status === 'pending').length > 0 && <span style={s.tabBadge}>{withdrawals.filter(w => w.status === 'pending').length}</span>}
+                        {t === 'support' && tickets.filter(tk => tk.status === 'open').length > 0 && <span style={s.tabBadge}>{tickets.filter(tk => tk.status === 'open').length}</span>}
                     </div>
                 ))}
             </div>
 
+            {/* ── Content ── */}
             <div style={s.content}>
                 {message && (
                     <div style={message.startsWith('✅') ? s.success : s.error} onClick={() => setMessage('')}>
-                        {message} <span style={{float:'right', cursor:'pointer'}}>✕</span>
+                        {message} <span style={{ float: 'right', cursor: 'pointer' }}>✕</span>
                     </div>
                 )}
 
+                {/* ════ Dashboard ════ */}
                 {activeTab === 'dashboard' && (
                     <div>
                         <div style={s.statsRow}>
-                            <div style={s.stat}>
-                                <div style={s.statLabel}>Total earnings</div>
-                                <div style={s.statVal}>KES {parseFloat(earnings).toLocaleString()}</div>
-                            </div>
-                            <div style={s.stat}>
-                                <div style={s.statLabel}>Total sales</div>
-                                <div style={s.statVal}>{sales}</div>
-                            </div>
-                            <div style={s.stat}>
-                                <div style={s.statLabel}>Products</div>
-                                <div style={s.statVal}>{products.length}</div>
-                            </div>
-                            <div style={s.stat}>
-                                <div style={s.statLabel}>Pending</div>
-                                <div style={s.statVal}>{pendingOrders.length}</div>
-                            </div>
+                            {[
+                                { label: 'Total earnings', val: `KES ${parseFloat(earnings).toLocaleString()}` },
+                                { label: 'Total sales', val: sales },
+                                { label: 'Products', val: products.length },
+                                { label: 'Pending orders', val: pendingOrders.length },
+                            ].map((st, i) => (
+                                <div key={i} style={s.stat}>
+                                    <div style={s.statLabel}>{st.label}</div>
+                                    <div style={s.statVal}>{st.val}</div>
+                                </div>
+                            ))}
                         </div>
+
                         <div style={s.twoCol}>
-                            <div style={s.panel}>
+                            <div style={{ ...s.panel, padding: '14px 16px' }}>
                                 <div style={s.panelTitle}>Top products</div>
                                 {topProducts.length === 0 && <p style={s.empty}>No sales yet</p>}
                                 {topProducts.map((p, i) => (
@@ -348,7 +339,7 @@ export default function SellerDashboard() {
                                     </div>
                                 ))}
                             </div>
-                            <div style={s.panel}>
+                            <div style={{ ...s.panel, padding: '14px 16px' }}>
                                 <div style={s.panelTitle}>Recent earnings</div>
                                 {recent.length === 0 && <p style={s.empty}>No earnings yet</p>}
                                 {recent.map(r => (
@@ -365,6 +356,7 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Products ════ */}
                 {activeTab === 'products' && (
                     <div>
                         <div style={s.productModeBtns}>
@@ -378,12 +370,13 @@ export default function SellerDashboard() {
                             </button>
                         </div>
 
+                        {/* Edit product form */}
                         {editProduct && (
                             <div style={s.formBox}>
                                 <div style={s.formTitle}>Edit product</div>
                                 <form onSubmit={handleEditProduct}>
-                                    {renderProductForm(form, setForm, handleImageUpload, uploading, s)}
-                                    <div style={{display:'flex', gap:10}}>
+                                    <ProductForm form={form} setForm={setForm} onUpload={handleImageUpload} uploading={uploading} s={s} categories={categories} />
+                                    <div style={{ display: 'flex', gap: 10 }}>
                                         <button style={s.submitBtn} type="submit">Save changes</button>
                                         <button style={s.cancelBtn} type="button" onClick={() => setEditProduct(null)}>Cancel</button>
                                     </div>
@@ -391,12 +384,13 @@ export default function SellerDashboard() {
                             </div>
                         )}
 
+                        {/* Single product form */}
                         {showForm && !editProduct && (
                             <div style={s.formBox}>
                                 <div style={s.formTitle}>Add single product</div>
                                 <form onSubmit={handleAddProduct}>
-                                    {renderProductForm(form, setForm, handleImageUpload, uploading, s)}
-                                    <div style={{display:'flex', gap:10}}>
+                                    <ProductForm form={form} setForm={setForm} onUpload={handleImageUpload} uploading={uploading} s={s} categories={categories} />
+                                    <div style={{ display: 'flex', gap: 10 }}>
                                         <button style={s.submitBtn} type="submit">Add Product</button>
                                         <button style={s.cancelBtn} type="button" onClick={() => setShowForm(false)}>Cancel</button>
                                     </div>
@@ -404,6 +398,7 @@ export default function SellerDashboard() {
                             </div>
                         )}
 
+                        {/* Bulk upload form */}
                         {!showForm && !editProduct && (
                             <div style={s.formBox}>
                                 <div style={s.formTitle}>Bulk upload products</div>
@@ -413,8 +408,7 @@ export default function SellerDashboard() {
                                             <div style={s.bulkHeader}>
                                                 <div style={s.formTitle}>Product {index + 1}</div>
                                                 {bulkForms.length > 1 && (
-                                                    <button type="button" style={s.removeBtn}
-                                                        onClick={() => removeBulkRow(index)}>Remove</button>
+                                                    <button type="button" style={s.removeBtn} onClick={() => removeBulkRow(index)}>Remove</button>
                                                 )}
                                             </div>
                                             <label style={s.label}>Name *</label>
@@ -423,7 +417,7 @@ export default function SellerDashboard() {
                                             <label style={s.label}>Description</label>
                                             <input style={s.input} placeholder="Brief description"
                                                 value={bf.description} onChange={e => updateBulkRow(index, 'description', e.target.value)} />
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                                 <div>
                                                     <label style={s.label}>Price (KES) *</label>
                                                     <input style={s.input} type="number" placeholder="0"
@@ -438,20 +432,16 @@ export default function SellerDashboard() {
                                             <label style={s.label}>Category</label>
                                             <select style={s.input} value={bf.category}
                                                 onChange={e => updateBulkRow(index, 'category', e.target.value)}>
-                                                {['general','smartphones','laptops','tvs','boutique','appliances','furniture'].map(c => (
-                                                    <option key={c} value={c}>{c}</option>
-                                                ))}
+                                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                             <label style={s.label}>Image</label>
                                             <input type="file" accept="image/*"
                                                 onChange={e => handleImageUpload(e.target.files[0], index)}
-                                                style={{...s.input, padding:8}} />
-                                            {bf.image && <img src={bf.image} alt="preview" style={{width:'100%', height:100, objectFit:'cover', borderRadius:8, marginBottom:10}} />}
+                                                style={{ ...s.input, padding: 8 }} />
+                                            {bf.image && <img src={bf.image} alt="preview" style={{ width: '100%', height: 100, objectFit: 'cover', borderRadius: 8, marginBottom: 10 }} />}
                                         </div>
                                     ))}
-                                    <button type="button" style={s.addMoreBtn} onClick={addBulkRow}>
-                                        + Add another product
-                                    </button>
+                                    <button type="button" style={s.addMoreBtn} onClick={addBulkRow}>+ Add another product</button>
                                     <button style={s.submitBtn} type="submit">
                                         Upload {bulkForms.length} product{bulkForms.length > 1 ? 's' : ''}
                                     </button>
@@ -459,18 +449,19 @@ export default function SellerDashboard() {
                             </div>
                         )}
 
+                        {/* Products list */}
                         <div style={s.panelTitle}>My products ({products.length})</div>
                         {products.length === 0 && <p style={s.empty}>No products yet.</p>}
                         {products.map(p => (
                             <div key={p.id} style={s.productRow}>
-                                {p.image && <img src={p.image} alt={p.name} style={{width:60, height:60, objectFit:'cover', borderRadius:8, marginRight:14, flexShrink:0}} />}
-                                <div style={{flex:1, minWidth:0}}>
+                                {p.image && <img src={p.image} alt={p.name} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, marginRight: 14, flexShrink: 0 }} />}
+                                <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={s.rowName}>{p.name}</div>
                                     <div style={s.rowDate}>{p.category}</div>
-                                    <div style={{color:'#7c6ef7', fontSize:14, fontWeight:600}}>KES {parseFloat(p.price).toLocaleString()}</div>
+                                    <div style={{ color: '#7c6ef7', fontSize: 14, fontWeight: 600 }}>KES {parseFloat(p.price).toLocaleString()}</div>
                                 </div>
-                                <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
-                                    <div style={{...s.stockBadge, ...(p.stock === 0 ? s.outOfStock : s.inStock)}}>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <div style={{ ...s.stockBadge, ...(p.stock === 0 ? s.outOfStock : s.inStock) }}>
                                         {p.stock === 0 ? 'Out of stock' : `${p.stock} in stock`}
                                     </div>
                                     <button style={s.editBtn} onClick={() => openEdit(p)}>Edit</button>
@@ -481,36 +472,37 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Orders ════ */}
                 {activeTab === 'orders' && (
                     <div>
                         <div style={s.panelTitle}>Pending orders ({pendingOrders.length})</div>
                         <div style={s.panel}>
-                            {pendingOrders.length === 0 && <p style={{...s.empty, padding:16}}>No pending orders</p>}
+                            {pendingOrders.length === 0 && <p style={{ ...s.empty, padding: 16 }}>No pending orders</p>}
                             {pendingOrders.map(o => (
                                 <div key={o.id} style={s.row}>
                                     <div>
                                         <div style={s.rowName}>{o.product_name}</div>
                                         <div style={s.rowDate}>Buyer: {o.buyer_name} · {new Date(o.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
-                                        <div style={{color:'#5dd6a3', fontSize:14, fontWeight:600}}>KES {parseFloat(o.amount).toLocaleString()}</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                        <div style={{ color: '#5dd6a3', fontSize: 14, fontWeight: 600 }}>KES {parseFloat(o.amount).toLocaleString()}</div>
                                         <button style={s.deliverBtn} onClick={() => handleDeliver(o.id)}>Mark delivered</button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <div style={{...s.panelTitle, marginTop:24}}>Delivered orders ({deliveredOrders.length})</div>
+                        <div style={{ ...s.panelTitle, marginTop: 24 }}>Delivered orders ({deliveredOrders.length})</div>
                         <div style={s.panel}>
-                            {deliveredOrders.length === 0 && <p style={{...s.empty, padding:16}}>No delivered orders yet</p>}
+                            {deliveredOrders.length === 0 && <p style={{ ...s.empty, padding: 16 }}>No delivered orders yet</p>}
                             {deliveredOrders.map(o => (
                                 <div key={o.id} style={s.row}>
                                     <div>
                                         <div style={s.rowName}>{o.product_name}</div>
                                         <div style={s.rowDate}>Buyer: {o.buyer_name} · {new Date(o.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{display:'flex', alignItems:'center', gap:10}}>
-                                        <div style={{color:'#5dd6a3', fontSize:14, fontWeight:600}}>KES {parseFloat(o.amount).toLocaleString()}</div>
-                                        <div style={{...s.stockBadge, ...s.inStock}}>Delivered</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <div style={{ color: '#5dd6a3', fontSize: 14, fontWeight: 600 }}>KES {parseFloat(o.amount).toLocaleString()}</div>
+                                        <div style={{ ...s.stockBadge, ...s.inStock }}>Delivered</div>
                                     </div>
                                 </div>
                             ))}
@@ -518,21 +510,22 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Stock ════ */}
                 {activeTab === 'stock' && (
                     <div>
                         <div style={s.panelTitle}>Stock management</div>
                         {products.length === 0 && <p style={s.empty}>No products yet.</p>}
                         {products.map(p => (
                             <div key={p.id} style={s.stockRow}>
-                                <div style={{flex:1}}>
+                                <div style={{ flex: 1 }}>
                                     <div style={s.rowName}>{p.name}</div>
-                                    <div style={{...s.stockBadge, ...(p.stock === 0 ? s.outOfStock : s.inStock), marginTop:4}}>
+                                    <div style={{ ...s.stockBadge, ...(p.stock === 0 ? s.outOfStock : s.inStock), marginTop: 4 }}>
                                         {p.stock === 0 ? 'Out of stock' : `${p.stock} available`}
                                     </div>
                                 </div>
-                                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <input type="number" defaultValue={p.stock}
-                                        style={{...s.input, width:80, marginBottom:0, textAlign:'center'}}
+                                        style={{ ...s.input, width: 80, marginBottom: 0, textAlign: 'center' }}
                                         id={`stock-${p.id}`} />
                                     <button style={s.submitBtn} onClick={() => {
                                         const val = document.getElementById(`stock-${p.id}`).value;
@@ -544,6 +537,7 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Withdrawals ════ */}
                 {activeTab === 'withdrawals' && (
                     <div>
                         <div style={s.earningsCard}>
@@ -561,14 +555,14 @@ export default function SellerDashboard() {
                         </div>
                         <div style={s.sectionLabel}>My withdrawal history</div>
                         <div style={s.panel}>
-                            {withdrawals.length === 0 && <p style={{...s.empty, padding:16}}>No withdrawals yet.</p>}
+                            {withdrawals.length === 0 && <p style={{ ...s.empty, padding: 16 }}>No withdrawals yet.</p>}
                             {withdrawals.map(w => (
                                 <div key={w.id} style={s.row}>
                                     <div>
                                         <div style={s.rowName}>KES {parseFloat(w.amount).toLocaleString()}</div>
                                         <div style={s.rowDate}>{new Date(w.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{...s.stockBadge, ...(w.status === 'approved' ? s.inStock : s.pendingBadge)}}>
+                                    <div style={{ ...s.stockBadge, ...(w.status === 'approved' ? s.inStock : s.pendingBadge) }}>
                                         {w.status}
                                     </div>
                                 </div>
@@ -577,12 +571,13 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Support ════ */}
                 {activeTab === 'support' && (
                     <div>
                         <div style={s.contactBar}>
-                            <div style={s.contactItem}>📞 <span style={{color:'#e2e8f0'}}>+254 700 000 000</span></div>
-                            <div style={s.contactItem}>📧 <span style={{color:'#e2e8f0'}}>support@easybuy.co.ke</span></div>
-                            <div style={s.contactItem}>💬 <span style={{color:'#e2e8f0'}}>WhatsApp: +254 700 000 000</span></div>
+                            <div style={s.contactItem}>📞 <span style={{ color: '#e2e8f0' }}>+254 700 000 000</span></div>
+                            <div style={s.contactItem}>📧 <span style={{ color: '#e2e8f0' }}>support@easybuy.co.ke</span></div>
+                            <div style={s.contactItem}>💬 <span style={{ color: '#e2e8f0' }}>WhatsApp: +254 700 000 000</span></div>
                         </div>
                         <div style={s.sectionLabel}>Report a problem</div>
                         <div style={s.formBox}>
@@ -590,26 +585,26 @@ export default function SellerDashboard() {
                                 <label style={s.label}>Subject</label>
                                 <input style={s.input} placeholder="e.g. Payment issue"
                                     value={ticketForm.subject}
-                                    onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} required />
+                                    onChange={e => setTicketForm({ ...ticketForm, subject: e.target.value })} required />
                                 <label style={s.label}>Message</label>
-                                <textarea style={{...s.input, height:100, resize:'none'}}
+                                <textarea style={{ ...s.input, height: 100, resize: 'none' }}
                                     placeholder="Describe your issue..."
                                     value={ticketForm.message}
-                                    onChange={e => setTicketForm({...ticketForm, message: e.target.value})} required />
+                                    onChange={e => setTicketForm({ ...ticketForm, message: e.target.value })} required />
                                 <button style={s.submitBtn} type="submit">Submit Ticket</button>
                             </form>
                         </div>
                         <div style={s.sectionLabel}>My tickets</div>
                         <div style={s.panel}>
-                            {tickets.length === 0 && <p style={{...s.empty, padding:16}}>No tickets yet.</p>}
+                            {tickets.length === 0 && <p style={{ ...s.empty, padding: 16 }}>No tickets yet.</p>}
                             {tickets.map(t => (
                                 <div key={t.id} style={s.row}>
                                     <div>
                                         <div style={s.rowName}>{t.subject}</div>
-                                        <div style={{color:'#8892a4', fontSize:13, marginTop:2}}>{t.message}</div>
+                                        <div style={{ color: '#8892a4', fontSize: 13, marginTop: 2 }}>{t.message}</div>
                                         <div style={s.rowDate}>{new Date(t.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{...s.stockBadge, ...(t.status === 'closed' ? s.inStock : s.pendingBadge)}}>
+                                    <div style={{ ...s.stockBadge, ...(t.status === 'closed' ? s.inStock : s.pendingBadge) }}>
                                         {t.status}
                                     </div>
                                 </div>
@@ -618,6 +613,7 @@ export default function SellerDashboard() {
                     </div>
                 )}
 
+                {/* ════ Profile ════ */}
                 {activeTab === 'profile' && profile && (
                     <div>
                         <div style={s.profileHeader}>
@@ -636,7 +632,8 @@ export default function SellerDashboard() {
 
                         <div style={s.profileTabs}>
                             {['info', 'password'].map(t => (
-                                <div key={t} style={{...s.profileTab, ...(profileTab === t ? s.profileTabActive : {})}}
+                                <div key={t}
+                                    style={{ ...s.profileTab, ...(profileTab === t ? s.profileTabActive : {}) }}
                                     onClick={() => setProfileTab(t)}>
                                     {t === 'info' ? '👤 Profile info' : '🔒 Change password'}
                                 </div>
@@ -648,36 +645,36 @@ export default function SellerDashboard() {
                                 <form onSubmit={handleUpdateProfile}>
                                     <label style={s.label}>Full name</label>
                                     <input style={s.input} value={profileForm.name}
-                                        onChange={e => setProfileForm({...profileForm, name: e.target.value})} required />
+                                        onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} required />
+
                                     <label style={s.label}>Profile picture</label>
-                                    <div style={{marginBottom:14, textAlign:'center'}}>
-                                        <label htmlFor="profile-pic-upload" style={{cursor:'pointer'}}>
-                                         <div style={{...s.avatarPlaceholder, width:90, height:90, fontSize:32, margin:'0 auto 8px', position:'relative'}}>
-                                             {profileForm.profile_picture
-                                              ? <img src={profileForm.profile_picture} alt="profile" style={{width:90, height:90, borderRadius:'50%', objectFit:'cover'}} />
-                                              : profile?.name?.charAt(0).toUpperCase()
-                                             }
-                                             <div style={{position:'absolute', bottom:0, right:0, background:'#5dd6a3', borderRadius:'50%', width:24, height:24, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12}}>✏️</div>
-                                         </div>
-                                         <div style={{color:'#5a6480', fontSize:12}}>Tap to change photo</div>
+                                    <div style={{ marginBottom: 14, textAlign: 'center' }}>
+                                        <label htmlFor="profile-pic-upload" style={{ cursor: 'pointer' }}>
+                                            <div style={{ ...s.avatarPlaceholder, width: 90, height: 90, fontSize: 32, margin: '0 auto 8px', position: 'relative' }}>
+                                                {profileForm.profile_picture
+                                                    ? <img src={profileForm.profile_picture} alt="profile" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover' }} />
+                                                    : profile?.name?.charAt(0).toUpperCase()
+                                                }
+                                                <div style={{ position: 'absolute', bottom: 0, right: 0, background: '#5dd6a3', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>✏️</div>
+                                            </div>
+                                            <div style={{ color: '#5a6480', fontSize: 12 }}>Tap to change photo</div>
                                         </label>
                                         <input id="profile-pic-upload" type="file" accept="image/*"
-                                         onChange={e => handleProfileImageUpload(e.target.files[0])}
-                                         style={{display:'none'}} />
+                                            onChange={e => handleProfileImageUpload(e.target.files[0])}
+                                            style={{ display: 'none' }} />
                                     </div>
-                                    {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
-                                    {profileForm.profile_picture && (
-                                        <img src={profileForm.profile_picture} alt="preview"
-                                            style={{width:80, height:80, borderRadius:'50%', objectFit:'cover', marginBottom:14}} />
-                                    )}
+                                    {uploading && <div style={{ color: '#5a6480', fontSize: 12, marginBottom: 10 }}>Uploading...</div>}
+
                                     <label style={s.label}>M-Pesa number</label>
                                     <input style={s.input} placeholder="e.g. 0712345678"
                                         value={profileForm.mpesa_number}
-                                        onChange={e => setProfileForm({...profileForm, mpesa_number: e.target.value})} />
+                                        onChange={e => setProfileForm({ ...profileForm, mpesa_number: e.target.value })} />
+
                                     <div style={s.referralBox}>
                                         <div style={s.label}>Your referral code</div>
                                         <div style={s.referralCode}>{profile.referral_code}</div>
                                     </div>
+
                                     <button style={s.submitBtn} type="submit">Save changes</button>
                                 </form>
                             </div>
@@ -689,15 +686,15 @@ export default function SellerDashboard() {
                                     <label style={s.label}>Current password</label>
                                     <input style={s.input} type="password" placeholder="••••••••"
                                         value={passwordForm.current_password}
-                                        onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})} required />
+                                        onChange={e => setPasswordForm({ ...passwordForm, current_password: e.target.value })} required />
                                     <label style={s.label}>New password</label>
                                     <input style={s.input} type="password" placeholder="••••••••"
                                         value={passwordForm.new_password}
-                                        onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})} required />
+                                        onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })} required />
                                     <label style={s.label}>Confirm new password</label>
                                     <input style={s.input} type="password" placeholder="••••••••"
                                         value={passwordForm.confirm_password}
-                                        onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})} required />
+                                        onChange={e => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })} required />
                                     <button style={s.submitBtn} type="submit">Change password</button>
                                 </form>
                             </div>
@@ -709,56 +706,61 @@ export default function SellerDashboard() {
     );
 }
 
-function renderProductForm(form, setForm, handleImageUpload, uploading, s) {
+// ── Reusable product form ──────────────────────────────────────────────────────
+function ProductForm({ form, setForm, onUpload, uploading, s, categories }) {
     return (
         <>
             <label style={s.label}>Product name *</label>
             <input style={s.input} placeholder="e.g. Wireless Earbuds"
-                value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
+                value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+
             <label style={s.label}>Description</label>
             <input style={s.input} placeholder="Brief description"
-                value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                     <label style={s.label}>Price (KES) *</label>
                     <input style={s.input} type="number" placeholder="e.g. 1500"
-                        value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
+                        value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required />
                 </div>
                 <div>
                     <label style={s.label}>Stock quantity</label>
                     <input style={s.input} type="number" placeholder="e.g. 50"
-                        value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                        value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} />
                 </div>
             </div>
+
             <label style={s.label}>Category</label>
             <select style={s.input} value={form.category}
-                onChange={e => setForm({...form, category: e.target.value})}>
-                {['general','smartphones','laptops','tvs','boutique','appliances','furniture'].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                ))}
+                onChange={e => setForm({ ...form, category: e.target.value })}>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <label style={s.label}>Specifications <span style={{color:'#5a6480'}}>(optional)</span></label>
-            <textarea style={{...s.input, height:80, resize:'none'}}
+
+            <label style={s.label}>Specifications <span style={{ color: '#5a6480' }}>(optional)</span></label>
+            <textarea style={{ ...s.input, height: 80, resize: 'none' }}
                 placeholder="e.g. RAM: 8GB, Storage: 256GB"
                 value={form.specifications}
-                onChange={e => setForm({...form, specifications: e.target.value})} />
-            <label style={s.label}>Product image <span style={{color:'#5a6480'}}>(optional)</span></label>
+                onChange={e => setForm({ ...form, specifications: e.target.value })} />
+
+            <label style={s.label}>Product image <span style={{ color: '#5a6480' }}>(optional)</span></label>
             <input type="file" accept="image/*"
-                onChange={e => handleImageUpload(e.target.files[0])}
-                style={{...s.input, padding:8}} />
-            {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
-            {form.image && <img src={form.image} alt="preview" style={{width:'100%', height:140, objectFit:'cover', borderRadius:8, marginBottom:14}} />}
+                onChange={e => onUpload(e.target.files[0])}
+                style={{ ...s.input, padding: 8 }} />
+            {uploading && <div style={{ color: '#5a6480', fontSize: 12, marginBottom: 10 }}>Uploading...</div>}
+            {form.image && <img src={form.image} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 14 }} />}
         </>
     );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = {
     page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0', width: '100%', overflowX: 'hidden' },
     nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 16px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     logo: { color: '#5dd6a3', fontSize: 18, fontWeight: 600 },
     navRight: { display: 'flex', alignItems: 'center', gap: 8 },
     addBtn: { background: '#5dd6a3', border: 'none', color: '#0f2820', padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-    avatar: { width: 32, height: 32, borderRadius: '50%', background: '#1a3530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#5dd6a3' },
+    avatar: { width: 32, height: 32, borderRadius: '50%', background: '#1a3530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#5dd6a3', overflow: 'hidden', cursor: 'pointer' },
     logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
     tabBar: { background: '#161b27', borderBottom: '0.5px solid #2d3348', display: 'flex', padding: '0 8px', gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
     tab: { padding: '12px 8px', fontSize: 11, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', flexShrink: 0 },
@@ -770,7 +772,7 @@ const s = {
     stat: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 14px' },
     statLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
     statVal: { fontSize: 20, fontWeight: 600, color: '#e2e8f0' },
-    twoCol: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 },
+    twoCol: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 16 },
     panel: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, marginBottom: 16 },
     panelTitle: { fontSize: 12, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
     row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '0.5px solid #1e2535', flexWrap: 'wrap', gap: 8 },
@@ -778,7 +780,7 @@ const s = {
     rowDate: { fontSize: 11, color: '#5a6480', marginTop: 2 },
     rowAmt: { fontSize: 13, fontWeight: 600, color: '#5dd6a3' },
     empty: { color: '#5a6480', fontSize: 13 },
-    formBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 20 },
+    formBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: 16, marginBottom: 20 },
     formTitle: { fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 14 },
     label: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6 },
     input: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box', outline: 'none' },
@@ -787,7 +789,7 @@ const s = {
     productModeBtns: { display: 'flex', gap: 8, marginBottom: 16 },
     modeBtn: { background: '#161b27', border: '0.5px solid #2d3348', color: '#8892a4', padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
     modeActive: { background: '#1a3530', border: '0.5px solid #5dd6a3', color: '#5dd6a3', padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
-    bulkRow: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px', marginBottom: 14 },
+    bulkRow: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 10, padding: 14, marginBottom: 14 },
     bulkHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     addMoreBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '10px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer', width: '100%', marginBottom: 14 },
     removeBtn: { background: '#2a1018', border: 'none', color: '#f09595', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
@@ -800,11 +802,11 @@ const s = {
     editBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
     deleteBtn: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
     deliverBtn: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
-    earningsCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 20, textAlign: 'center' },
+    earningsCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: 20, marginBottom: 20, textAlign: 'center' },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, marginTop: 8 },
-    contactBar: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 },
+    contactBar: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: 16, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 },
     contactItem: { fontSize: 13, color: '#5a6480' },
-    profileHeader: { display: 'flex', alignItems: 'center', gap: 16, background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 20 },
+    profileHeader: { display: 'flex', alignItems: 'center', gap: 16, background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: 20, marginBottom: 20 },
     avatarBox: { flexShrink: 0 },
     avatarImg: { width: 70, height: 70, borderRadius: '50%', objectFit: 'cover' },
     avatarPlaceholder: { width: 70, height: 70, borderRadius: '50%', background: '#1a3530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 600, color: '#5dd6a3' },
@@ -814,7 +816,7 @@ const s = {
     profileTabs: { display: 'flex', gap: 4, marginBottom: 16, borderBottom: '0.5px solid #2d3348' },
     profileTab: { padding: '10px 14px', fontSize: 13, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent' },
     profileTabActive: { color: '#e2e8f0', borderBottom: '2px solid #5dd6a3' },
-    referralBox: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '12px', marginBottom: 14 },
+    referralBox: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: 12, marginBottom: 14 },
     referralCode: { fontSize: 16, color: '#5dd6a3', fontFamily: 'monospace', marginTop: 4 },
     success: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },

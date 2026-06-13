@@ -19,7 +19,7 @@ export default function AdminDashboard() {
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [profileTab, setProfileTab] = useState('info');
     const [uploading, setUploading] = useState(false);
-
+    const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });     
     useEffect(() => {
         fetchStats();
         fetchUsers();
@@ -135,6 +135,28 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    try {
+        await API.post('/api/admin/create-admin', adminForm);
+        setMessage('✅ Admin created successfully');
+        setAdminForm({ name: '', email: '', password: '' });
+        fetchUsers();
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+    }
+};
+
+const handlePromoteAdmin = async (id) => {
+    if (!window.confirm('Promote this user to admin?')) return;
+    try {
+        await API.post(`/api/admin/users/${id}/promote`);
+        setMessage('✅ User promoted to admin');
+        fetchUsers();
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+    }
+};
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
@@ -169,13 +191,14 @@ export default function AdminDashboard() {
     };
 
     const tabs = [
-        { id: 'overview', icon: '📊', label: 'Overview' },
-        { id: 'users', icon: '👥', label: 'Users', badge: users.filter(u => u.status === 'banned').length },
-        { id: 'orders', icon: '📦', label: 'Orders', badge: orders.filter(o => o.status === 'pending').length },
-        { id: 'withdrawals', icon: '💸', label: 'Withdrawals', badge: withdrawals.filter(w => w.status === 'pending').length },
-        { id: 'support', icon: '🎧', label: 'Support', badge: tickets.filter(t => t.status === 'open').length },
-        { id: 'profile', icon: '👤', label: 'Profile' },
-    ];
+    { id: 'overview', icon: '📊', label: 'Overview' },
+    { id: 'users', icon: '👥', label: 'Users', badge: users.filter(u => u.status === 'banned').length },
+    { id: 'orders', icon: '📦', label: 'Orders', badge: orders.filter(o => o.status === 'pending').length },
+    { id: 'withdrawals', icon: '💸', label: 'Withdrawals', badge: withdrawals.filter(w => w.status === 'pending').length },
+    { id: 'support', icon: '🎧', label: 'Support', badge: tickets.filter(t => t.status === 'open').length },
+    { id: 'admins', icon: '🛡', label: 'Admins' },
+    { id: 'profile', icon: '👤', label: 'Profile' },
+];
 
     return (
         <div style={s.page}>
@@ -344,6 +367,49 @@ export default function AdminDashboard() {
                             {tickets.length === 0 && <p style={s.empty}>No tickets yet.</p>}
                         </div>
                     )}
+                    {activeTab === 'admins' && (
+    <div>
+        <div style={s.pageTitle}>Admin Management</div>
+        <div style={s.formBox}>
+            <div style={{fontSize:14, fontWeight:600, color:'#e2e8f0', marginBottom:14}}>Create new admin</div>
+            <form onSubmit={handleCreateAdmin}>
+                <label style={s.label}>Full name</label>
+                <input style={s.input} placeholder="Admin name"
+                    value={adminForm.name}
+                    onChange={e => setAdminForm({...adminForm, name: e.target.value})} required />
+                <label style={s.label}>Email</label>
+                <input style={s.input} type="email" placeholder="admin@easybuy.co.ke"
+                    value={adminForm.email}
+                    onChange={e => setAdminForm({...adminForm, email: e.target.value})} required />
+                <label style={s.label}>Password</label>
+                <input style={s.input} type="password" placeholder="••••••••"
+                    value={adminForm.password}
+                    onChange={e => setAdminForm({...adminForm, password: e.target.value})} required />
+                <button style={s.approveBtn} type="submit">Create Admin</button>
+            </form>
+        </div>
+        <div style={{fontSize:12, color:'#5a6480', textTransform:'uppercase', letterSpacing:0.8, marginBottom:14}}>
+            Promote existing user to admin
+        </div>
+        {users.filter(u => u.role !== 'admin').map(u => (
+            <div key={u.id} style={s.card}>
+                <div style={s.userInfo}>
+                    <div style={s.userAvatar}>{u.name?.charAt(0).toUpperCase()}</div>
+                    <div>
+                        <div style={s.userName}>{u.name}</div>
+                        <div style={s.userEmail}>{u.email}</div>
+                        <span style={{...s.roleBadge, ...(u.role === 'seller' ? s.badgeSeller : s.badgeBuyer)}}>
+                            {u.role}
+                        </span>
+                    </div>
+                </div>
+                <button style={s.approveBtn} onClick={() => handlePromoteAdmin(u.id)}>
+                    Promote to admin
+                </button>
+            </div>
+        ))}
+    </div>
+)}
 
                     {activeTab === 'profile' && profile && (
                         <div>

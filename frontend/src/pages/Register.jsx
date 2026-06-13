@@ -45,10 +45,10 @@ export default function Register() {
     };
 
     const roles = [
-        { value: 'buyer', label: 'Buyer', desc: 'Shop products', fee: null },
-        { value: 'seller', label: 'Seller', desc: 'Sell & earn 90%', fee: 100 },
-        { value: 'affiliate', label: 'Affiliate', desc: 'Earn commissions', fee: 100 },
-    ];
+    { value: 'buyer', label: 'Buyer', desc: 'Shop products', fee: null },
+    { value: 'seller', label: 'Seller', desc: 'Sell & earn 90%', fee: 500 },
+    { value: 'affiliate', label: 'Affiliate', desc: 'Earn 10% commission', fee: 100 },
+];
 
     return (
         <div style={styles.page}>
@@ -69,10 +69,14 @@ export default function Register() {
                     ))}
                 </div>
 
-                {(form.role === 'seller' || form.role === 'affiliate') && (
+                {form.role === 'seller' && (
                     <div style={styles.feeNotice}>
-                        💳 A registration fee of <b>KES 100</b> will be charged to your wallet.
-                        Your wallet will start at <b>-KES 100</b> and you'll need to deposit to bring it to zero before withdrawing.
+                       💳 Seller registration requires a one-time fee of <b>KES 500</b>. After registering, go to your wallet and deposit KES 500 to activate your seller account. Your referrer earns <b>KES 150</b> when you pay.
+                    </div>
+                )}
+                {form.role === 'affiliate' && (
+                    <div style={styles.feeNotice}>
+                      💳 Affiliate registration requires a one-time fee of <b>KES 100</b>. After registering, go to your wallet and deposit KES 100 to activate your affiliate account. Your referrer earns <b>KES 30</b> when you pay.
                     </div>
                 )}
 

@@ -149,7 +149,7 @@ useEffect(() => {
                     <div style={s.cartBtn} onClick={() => navigate('/cart')}>
                         🛒 {cartCount > 0 && <span style={s.cartBadge}>{cartCount}</span>}
                     </div>
-                    <div style={s.avatar} onClick={() => navigate('/profile')}>
+                    <div style={s.avatar} onClick={() => navigate('/buyer/profile')}>
                         {profilePic
                             ? <img src={profilePic} alt="profile" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
                             : user?.name?.charAt(0).toUpperCase()

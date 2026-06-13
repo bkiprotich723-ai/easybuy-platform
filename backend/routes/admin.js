@@ -159,5 +159,51 @@ router.delete("/users/:id", verifyToken, authorizeRoles("admin"), async (req, re
         res.status(500).json({ error: err.message });
     }
 });
+// CREATE ADMIN USER
+router.post("/create-admin", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    const { name, email, password } = req.body;
+    const bcrypt = require("bcrypt");
+
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const referralCode = "REF" + Date.now();
+
+        const result = await db.query(
+            `INSERT INTO users (name, email, password, role, referral_code)
+             VALUES ($1, $2, $3, 'admin', $4)
+             RETURNING id`,
+            [name, email, hashedPassword, referralCode]
+        );
+
+        await db.query(
+            "INSERT INTO wallets (user_id, balance) VALUES ($1, 0)",
+            [result.rows[0].id]
+        );
+
+        res.json({ message: "Admin created successfully", userId: result.rows[0].id });
+    } catch (err) {
+        if (err.code === "23505") {
+            return res.status(400).json({ message: "Email already in use" });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PROMOTE USER TO ADMIN
+router.post("/users/:id/promote", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    try {
+        await db.query(
+            "UPDATE users SET role = 'admin' WHERE id = $1",
+            [req.params.id]
+        );
+        res.json({ message: "User promoted to admin successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 module.exports = router;
