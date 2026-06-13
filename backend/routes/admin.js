@@ -136,5 +136,28 @@ router.post("/withdrawals/:id/approve", verifyToken, authorizeRoles("admin"), as
         client.release();
     }
 });
+// BAN / RESTRICT / ACTIVATE USER
+router.post("/users/:id/status", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    const { status } = req.body;
+    if (!['active', 'banned', 'restricted'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+    }
+    try {
+        await db.query("UPDATE users SET status = $1 WHERE id = $2", [status, req.params.id]);
+        res.json({ message: `User ${status} successfully` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE USER
+router.delete("/users/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    try {
+        await db.query("DELETE FROM users WHERE id = $1", [req.params.id]);
+        res.json({ message: "User deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 module.exports = router;
