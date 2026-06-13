@@ -13,19 +13,29 @@ export default function SellerDashboard() {
     const [recent, setRecent] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [withdrawals, setWithdrawals] = useState([]);
+    const [tickets, setTickets] = useState([]);
+    const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
     const [message, setMessage] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editProduct, setEditProduct] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [withdrawals, setWithdrawals] = useState([]);
-    const [form, setForm] = useState({ name: '', description: '', price: '', image: '', stock: 0 });
+    const [bulkForms, setBulkForms] = useState([{ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
+    const [form, setForm] = useState({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
+    const [profile, setProfile] = useState(null);
+    const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
+    const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+    const [profileTab, setProfileTab] = useState('info');
 
-    useEffect(() => { fetchAll(); }, []);
+    useEffect(() => {
+        fetchAll();
+        fetchProfile();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchAll = async () => {
         try {
-            const [e, s, p, r, t, o, w] = await Promise.all([
+            const [e, s, p, r, t, o, w, tk] = await Promise.all([
                 API.get('/api/seller/total-earnings'),
                 API.get('/api/seller/total-sales'),
                 API.get('/api/products/my-products'),
@@ -33,6 +43,7 @@ export default function SellerDashboard() {
                 API.get('/api/seller/top-products'),
                 API.get('/api/transactions/seller-orders'),
                 API.get('/api/withdrawals/my'),
+                API.get('/api/support/my-tickets'),
             ]);
             setEarnings(e.data.total_earnings);
             setSales(s.data.total_sales);
@@ -41,10 +52,19 @@ export default function SellerDashboard() {
             setTopProducts(t.data);
             setOrders(o.data);
             setWithdrawals(w.data);
+            setTickets(tk.data);
         } catch (err) { console.error(err); }
     };
 
-    const handleImageUpload = async (file) => {
+    const fetchProfile = async () => {
+        try {
+            const res = await API.get('/api/profile');
+            setProfile(res.data);
+            setProfileForm({ name: res.data.name, profile_picture: res.data.profile_picture || '', mpesa_number: res.data.mpesa_number || '' });
+        } catch (err) { console.error(err); }
+    };
+
+    const handleImageUpload = async (file, index = null) => {
         setUploading(true);
         const data = new FormData();
         data.append('file', file);
@@ -55,7 +75,32 @@ export default function SellerDashboard() {
                 method: 'POST', body: data
             });
             const json = await res.json();
-            setForm(prev => ({...prev, image: json.secure_url}));
+            if (index !== null) {
+                const updated = [...bulkForms];
+                updated[index].image = json.secure_url;
+                setBulkForms(updated);
+            } else {
+                setForm(prev => ({...prev, image: json.secure_url}));
+            }
+        } catch (err) {
+            setMessage('❌ Image upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleProfileImageUpload = async (file) => {
+        setUploading(true);
+        const data = new FormData();
+        data.append('file', file);
+        data.append('upload_preset', 'easybuy_products');
+        data.append('cloud_name', 'dalljawxl');
+        try {
+            const res = await fetch('https://api.cloudinary.com/v1_1/dalljawxl/image/upload', {
+                method: 'POST', body: data
+            });
+            const json = await res.json();
+            setProfileForm(prev => ({...prev, profile_picture: json.secure_url}));
         } catch (err) {
             setMessage('❌ Image upload failed');
         } finally {
@@ -68,12 +113,42 @@ export default function SellerDashboard() {
         try {
             await API.post('/api/products/add', form);
             setMessage('✅ Product added successfully');
-            setForm({ name: '', description: '', price: '', image: '', stock: 0 });
+            setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
             setShowForm(false);
             fetchAll();
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
         }
+    };
+
+    const handleBulkAdd = async (e) => {
+        e.preventDefault();
+        try {
+            for (const product of bulkForms) {
+                if (product.name && product.price) {
+                    await API.post('/api/products/add', product);
+                }
+            }
+            setMessage(`✅ ${bulkForms.filter(p => p.name && p.price).length} products added successfully`);
+            setBulkForms([{ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
+            fetchAll();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
+
+    const addBulkRow = () => {
+        setBulkForms([...bulkForms, { name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
+    };
+
+    const removeBulkRow = (index) => {
+        setBulkForms(bulkForms.filter((_, i) => i !== index));
+    };
+
+    const updateBulkRow = (index, field, value) => {
+        const updated = [...bulkForms];
+        updated[index][field] = value;
+        setBulkForms(updated);
     };
 
     const handleEditProduct = async (e) => {
@@ -82,7 +157,7 @@ export default function SellerDashboard() {
             await API.put(`/api/products/${editProduct.id}`, form);
             setMessage('✅ Product updated successfully');
             setEditProduct(null);
-            setForm({ name: '', description: '', price: '', image: '', stock: 0 });
+            setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
             fetchAll();
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
@@ -132,21 +207,59 @@ export default function SellerDashboard() {
         }
     };
 
+    const handleTicket = async (e) => {
+        e.preventDefault();
+        try {
+            await API.post('/api/support/ticket', ticketForm);
+            setMessage('✅ Support ticket submitted!');
+            setTicketForm({ subject: '', message: '' });
+            fetchAll();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
+
+    const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        try {
+            await API.put('/api/profile/update', profileForm);
+            setMessage('✅ Profile updated successfully');
+            fetchProfile();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (passwordForm.new_password !== passwordForm.confirm_password) {
+            setMessage('❌ Passwords do not match');
+            return;
+        }
+        try {
+            await API.put('/api/profile/password', passwordForm);
+            setMessage('✅ Password changed successfully');
+            setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
+
     const openEdit = (p) => {
         setEditProduct(p);
-        setForm({ name: p.name, description: p.description, price: p.price, image: p.image || '', stock: p.stock || 0 });
+        setForm({ name: p.name, description: p.description, price: p.price, image: p.image || '', stock: p.stock || 0, category: p.category || 'general', specifications: p.specifications || '' });
         setActiveTab('products');
+        setShowForm(false);
     };
 
     const handleLogout = () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-        logout();
-        navigate('/');
-    }
-};
+        if (window.confirm('Are you sure you want to log out?')) {
+            logout();
+            navigate('/');
+        }
+    };
 
-    const tabs = ['dashboard', 'products', 'orders', 'stock', 'withdrawals'];
-
+    const tabs = ['dashboard', 'products', 'orders', 'stock', 'withdrawals', 'support', 'profile'];
     const pendingOrders = orders.filter(o => o.status === 'pending');
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
 
@@ -155,8 +268,8 @@ export default function SellerDashboard() {
             <div style={s.nav}>
                 <div style={s.logo}>🏪 Seller Hub</div>
                 <div style={s.navRight}>
-                    <button style={s.addBtn} onClick={() => { setShowForm(true); setEditProduct(null); setForm({ name: '', description: '', price: '', image: '', stock: 0 }); setActiveTab('products'); }}>
-                        + Add Product
+                    <button style={s.addBtn} onClick={() => { setShowForm(true); setEditProduct(null); setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }); setActiveTab('products'); }}>
+                        + Add
                     </button>
                     <div style={s.avatar}>{user?.name?.charAt(0).toUpperCase()}</div>
                     <button style={s.logoutBtn} onClick={handleLogout}>Log out</button>
@@ -165,24 +278,31 @@ export default function SellerDashboard() {
 
             <div style={s.tabBar}>
                 {tabs.map(t => (
-    <div key={t} style={{...s.tab, ...(activeTab === t ? s.tabActive : {})}}
-        onClick={() => setActiveTab(t)}>
-        <span>
-            {t === 'dashboard' && '📊 '}
-            {t === 'products' && '📦 '}
-            {t === 'orders' && '🧾 '}
-            {t === 'stock' && '🗃 '}
-            {t === 'withdrawals' && '💸 '}
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-        </span>
-        {t === 'orders' && pendingOrders.length > 0 && (
-            <span style={s.tabBadge}>{pendingOrders.length}</span>
-        )}
-        {t === 'withdrawals' && withdrawals.filter(w => w.status === 'pending').length > 0 && (
-            <span style={s.tabBadge}>{withdrawals.filter(w => w.status === 'pending').length}</span>
-        )}
-    </div>
-))}
+                    <div key={t} style={{...s.tab, ...(activeTab === t ? s.tabActive : {})}}
+                        onClick={() => setActiveTab(t)}>
+                        <span>
+                            {t === 'dashboard' && '📊'}
+                            {t === 'products' && '📦'}
+                            {t === 'orders' && '🧾'}
+                            {t === 'stock' && '🗃'}
+                            {t === 'withdrawals' && '💸'}
+                            {t === 'support' && '🎧'}
+                            {t === 'profile' && '👤'}
+                        </span>
+                        <span style={s.tabLabel}>
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </span>
+                        {t === 'orders' && pendingOrders.length > 0 && (
+                            <span style={s.tabBadge}>{pendingOrders.length}</span>
+                        )}
+                        {t === 'withdrawals' && withdrawals.filter(w => w.status === 'pending').length > 0 && (
+                            <span style={s.tabBadge}>{withdrawals.filter(w => w.status === 'pending').length}</span>
+                        )}
+                        {t === 'support' && tickets.filter(tk => tk.status === 'open').length > 0 && (
+                            <span style={s.tabBadge}>{tickets.filter(tk => tk.status === 'open').length}</span>
+                        )}
+                    </div>
+                ))}
             </div>
 
             <div style={s.content}>
@@ -204,11 +324,11 @@ export default function SellerDashboard() {
                                 <div style={s.statVal}>{sales}</div>
                             </div>
                             <div style={s.stat}>
-                                <div style={s.statLabel}>Products listed</div>
+                                <div style={s.statLabel}>Products</div>
                                 <div style={s.statVal}>{products.length}</div>
                             </div>
                             <div style={s.stat}>
-                                <div style={s.statLabel}>Pending orders</div>
+                                <div style={s.statLabel}>Pending</div>
                                 <div style={s.statVal}>{pendingOrders.length}</div>
                             </div>
                         </div>
@@ -242,46 +362,109 @@ export default function SellerDashboard() {
 
                 {activeTab === 'products' && (
                     <div>
-                        {(showForm || editProduct) && (
+                        <div style={s.productModeBtns}>
+                            <button style={showForm && !editProduct ? s.modeActive : s.modeBtn}
+                                onClick={() => { setShowForm(true); setEditProduct(null); }}>
+                                + Single product
+                            </button>
+                            <button style={!showForm && !editProduct ? s.modeActive : s.modeBtn}
+                                onClick={() => { setShowForm(false); setEditProduct(null); }}>
+                                📦 Bulk upload
+                            </button>
+                        </div>
+
+                        {editProduct && (
                             <div style={s.formBox}>
-                                <div style={s.formTitle}>{editProduct ? 'Edit product' : 'Add new product'}</div>
-                                <form onSubmit={editProduct ? handleEditProduct : handleAddProduct}>
-                                    <label style={s.label}>Product name</label>
-                                    <input style={s.input} placeholder="e.g. Wireless Earbuds"
-                                        value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
-                                    <label style={s.label}>Description</label>
-                                    <input style={s.input} placeholder="Brief description"
-                                        value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
-                                    <label style={s.label}>Price (KES)</label>
-                                    <input style={s.input} type="number" placeholder="e.g. 1500"
-                                        value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
-                                    <label style={s.label}>Stock quantity</label>
-                                    <input style={s.input} type="number" placeholder="e.g. 50"
-                                        value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
-                                    <label style={s.label}>Product image <span style={{color:'#5a6480'}}>(optional)</span></label>
-                                    <input type="file" accept="image/*"
-                                        onChange={e => handleImageUpload(e.target.files[0])}
-                                        style={{...s.input, padding:8}} />
-                                    {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
-                                    {form.image && <img src={form.image} alt="preview" style={{width:'100%', height:140, objectFit:'cover', borderRadius:8, marginBottom:14}} />}
+                                <div style={s.formTitle}>Edit product</div>
+                                <form onSubmit={handleEditProduct}>
+                                    {renderProductForm(form, setForm, handleImageUpload, uploading, s)}
                                     <div style={{display:'flex', gap:10}}>
-                                        <button style={s.submitBtn} type="submit">{editProduct ? 'Save changes' : 'Add Product'}</button>
-                                        <button style={s.cancelBtn} type="button" onClick={() => { setShowForm(false); setEditProduct(null); }}>Cancel</button>
+                                        <button style={s.submitBtn} type="submit">Save changes</button>
+                                        <button style={s.cancelBtn} type="button" onClick={() => setEditProduct(null)}>Cancel</button>
                                     </div>
                                 </form>
                             </div>
                         )}
-                        <div style={s.panelTitle}>My products</div>
+
+                        {showForm && !editProduct && (
+                            <div style={s.formBox}>
+                                <div style={s.formTitle}>Add single product</div>
+                                <form onSubmit={handleAddProduct}>
+                                    {renderProductForm(form, setForm, handleImageUpload, uploading, s)}
+                                    <div style={{display:'flex', gap:10}}>
+                                        <button style={s.submitBtn} type="submit">Add Product</button>
+                                        <button style={s.cancelBtn} type="button" onClick={() => setShowForm(false)}>Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {!showForm && !editProduct && (
+                            <div style={s.formBox}>
+                                <div style={s.formTitle}>Bulk upload products</div>
+                                <form onSubmit={handleBulkAdd}>
+                                    {bulkForms.map((bf, index) => (
+                                        <div key={index} style={s.bulkRow}>
+                                            <div style={s.bulkHeader}>
+                                                <div style={s.formTitle}>Product {index + 1}</div>
+                                                {bulkForms.length > 1 && (
+                                                    <button type="button" style={s.removeBtn}
+                                                        onClick={() => removeBulkRow(index)}>Remove</button>
+                                                )}
+                                            </div>
+                                            <label style={s.label}>Name *</label>
+                                            <input style={s.input} placeholder="Product name"
+                                                value={bf.name} onChange={e => updateBulkRow(index, 'name', e.target.value)} required />
+                                            <label style={s.label}>Description</label>
+                                            <input style={s.input} placeholder="Brief description"
+                                                value={bf.description} onChange={e => updateBulkRow(index, 'description', e.target.value)} />
+                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                                                <div>
+                                                    <label style={s.label}>Price (KES) *</label>
+                                                    <input style={s.input} type="number" placeholder="0"
+                                                        value={bf.price} onChange={e => updateBulkRow(index, 'price', e.target.value)} required />
+                                                </div>
+                                                <div>
+                                                    <label style={s.label}>Stock</label>
+                                                    <input style={s.input} type="number" placeholder="0"
+                                                        value={bf.stock} onChange={e => updateBulkRow(index, 'stock', e.target.value)} />
+                                                </div>
+                                            </div>
+                                            <label style={s.label}>Category</label>
+                                            <select style={s.input} value={bf.category}
+                                                onChange={e => updateBulkRow(index, 'category', e.target.value)}>
+                                                {['general','smartphones','laptops','tvs','boutique','appliances','furniture'].map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                            <label style={s.label}>Image</label>
+                                            <input type="file" accept="image/*"
+                                                onChange={e => handleImageUpload(e.target.files[0], index)}
+                                                style={{...s.input, padding:8}} />
+                                            {bf.image && <img src={bf.image} alt="preview" style={{width:'100%', height:100, objectFit:'cover', borderRadius:8, marginBottom:10}} />}
+                                        </div>
+                                    ))}
+                                    <button type="button" style={s.addMoreBtn} onClick={addBulkRow}>
+                                        + Add another product
+                                    </button>
+                                    <button style={s.submitBtn} type="submit">
+                                        Upload {bulkForms.length} product{bulkForms.length > 1 ? 's' : ''}
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+
+                        <div style={s.panelTitle}>My products ({products.length})</div>
                         {products.length === 0 && <p style={s.empty}>No products yet.</p>}
                         {products.map(p => (
                             <div key={p.id} style={s.productRow}>
-                                {p.image && <img src={p.image} alt={p.name} style={{width:60, height:60, objectFit:'cover', borderRadius:8, marginRight:14}} />}
-                                <div style={{flex:1}}>
+                                {p.image && <img src={p.image} alt={p.name} style={{width:60, height:60, objectFit:'cover', borderRadius:8, marginRight:14, flexShrink:0}} />}
+                                <div style={{flex:1, minWidth:0}}>
                                     <div style={s.rowName}>{p.name}</div>
-                                    <div style={s.rowDate}>{p.description}</div>
+                                    <div style={s.rowDate}>{p.category}</div>
                                     <div style={{color:'#7c6ef7', fontSize:14, fontWeight:600}}>KES {parseFloat(p.price).toLocaleString()}</div>
                                 </div>
-                                <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
                                     <div style={{...s.stockBadge, ...(p.stock === 0 ? s.outOfStock : s.inStock)}}>
                                         {p.stock === 0 ? 'Out of stock' : `${p.stock} in stock`}
                                     </div>
@@ -295,9 +478,7 @@ export default function SellerDashboard() {
 
                 {activeTab === 'orders' && (
                     <div>
-                        <div style={s.orderTabs}>
-                            <div style={s.panelTitle}>Pending orders ({pendingOrders.length})</div>
-                        </div>
+                        <div style={s.panelTitle}>Pending orders ({pendingOrders.length})</div>
                         <div style={s.panel}>
                             {pendingOrders.length === 0 && <p style={{...s.empty, padding:16}}>No pending orders</p>}
                             {pendingOrders.map(o => (
@@ -306,7 +487,7 @@ export default function SellerDashboard() {
                                         <div style={s.rowName}>{o.product_name}</div>
                                         <div style={s.rowDate}>Buyer: {o.buyer_name} · {new Date(o.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{display:'flex', alignItems:'center', gap:10}}>
+                                    <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                                         <div style={{color:'#5dd6a3', fontSize:14, fontWeight:600}}>KES {parseFloat(o.amount).toLocaleString()}</div>
                                         <button style={s.deliverBtn} onClick={() => handleDeliver(o.id)}>Mark delivered</button>
                                     </div>
@@ -345,12 +526,9 @@ export default function SellerDashboard() {
                                     </div>
                                 </div>
                                 <div style={{display:'flex', alignItems:'center', gap:8}}>
-                                    <input
-                                        type="number"
-                                        defaultValue={p.stock}
+                                    <input type="number" defaultValue={p.stock}
                                         style={{...s.input, width:80, marginBottom:0, textAlign:'center'}}
-                                        id={`stock-${p.id}`}
-                                    />
+                                        id={`stock-${p.id}`} />
                                     <button style={s.submitBtn} onClick={() => {
                                         const val = document.getElementById(`stock-${p.id}`).value;
                                         handleStockUpdate(p.id, val);
@@ -372,8 +550,7 @@ export default function SellerDashboard() {
                             <form onSubmit={handleWithdraw}>
                                 <label style={s.label}>Amount (KES)</label>
                                 <input style={s.input} type="number" placeholder="e.g. 1000"
-                                    value={withdrawAmount}
-                                    onChange={e => setWithdrawAmount(e.target.value)} required />
+                                    value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} required />
                                 <button style={s.submitBtn} type="submit">Request Withdrawal</button>
                             </form>
                         </div>
@@ -386,10 +563,7 @@ export default function SellerDashboard() {
                                         <div style={s.rowName}>KES {parseFloat(w.amount).toLocaleString()}</div>
                                         <div style={s.rowDate}>{new Date(w.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <div style={{
-                                        ...s.stockBadge,
-                                        ...(w.status === 'approved' ? s.inStock : s.pendingBadge)
-                                    }}>
+                                    <div style={{...s.stockBadge, ...(w.status === 'approved' ? s.inStock : s.pendingBadge)}}>
                                         {w.status}
                                     </div>
                                 </div>
@@ -397,43 +571,210 @@ export default function SellerDashboard() {
                         </div>
                     </div>
                 )}
+
+                {activeTab === 'support' && (
+                    <div>
+                        <div style={s.contactBar}>
+                            <div style={s.contactItem}>📞 <span style={{color:'#e2e8f0'}}>+254 700 000 000</span></div>
+                            <div style={s.contactItem}>📧 <span style={{color:'#e2e8f0'}}>support@easybuy.co.ke</span></div>
+                            <div style={s.contactItem}>💬 <span style={{color:'#e2e8f0'}}>WhatsApp: +254 700 000 000</span></div>
+                        </div>
+                        <div style={s.sectionLabel}>Report a problem</div>
+                        <div style={s.formBox}>
+                            <form onSubmit={handleTicket}>
+                                <label style={s.label}>Subject</label>
+                                <input style={s.input} placeholder="e.g. Payment issue"
+                                    value={ticketForm.subject}
+                                    onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} required />
+                                <label style={s.label}>Message</label>
+                                <textarea style={{...s.input, height:100, resize:'none'}}
+                                    placeholder="Describe your issue..."
+                                    value={ticketForm.message}
+                                    onChange={e => setTicketForm({...ticketForm, message: e.target.value})} required />
+                                <button style={s.submitBtn} type="submit">Submit Ticket</button>
+                            </form>
+                        </div>
+                        <div style={s.sectionLabel}>My tickets</div>
+                        <div style={s.panel}>
+                            {tickets.length === 0 && <p style={{...s.empty, padding:16}}>No tickets yet.</p>}
+                            {tickets.map(t => (
+                                <div key={t.id} style={s.row}>
+                                    <div>
+                                        <div style={s.rowName}>{t.subject}</div>
+                                        <div style={{color:'#8892a4', fontSize:13, marginTop:2}}>{t.message}</div>
+                                        <div style={s.rowDate}>{new Date(t.created_at).toLocaleDateString()}</div>
+                                    </div>
+                                    <div style={{...s.stockBadge, ...(t.status === 'closed' ? s.inStock : s.pendingBadge)}}>
+                                        {t.status}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'profile' && profile && (
+                    <div>
+                        <div style={s.profileHeader}>
+                            <div style={s.avatarBox}>
+                                {profileForm.profile_picture
+                                    ? <img src={profileForm.profile_picture} alt="profile" style={s.avatarImg} />
+                                    : <div style={s.avatarPlaceholder}>{profile.name?.charAt(0).toUpperCase()}</div>
+                                }
+                            </div>
+                            <div>
+                                <div style={s.profileName}>{profile.name}</div>
+                                <div style={s.profileEmail}>{profile.email}</div>
+                                <div style={s.roleBadge}>{profile.role}</div>
+                            </div>
+                        </div>
+
+                        <div style={s.profileTabs}>
+                            {['info', 'password'].map(t => (
+                                <div key={t} style={{...s.profileTab, ...(profileTab === t ? s.profileTabActive : {})}}
+                                    onClick={() => setProfileTab(t)}>
+                                    {t === 'info' ? '👤 Profile info' : '🔒 Change password'}
+                                </div>
+                            ))}
+                        </div>
+
+                        {profileTab === 'info' && (
+                            <div style={s.formBox}>
+                                <form onSubmit={handleUpdateProfile}>
+                                    <label style={s.label}>Full name</label>
+                                    <input style={s.input} value={profileForm.name}
+                                        onChange={e => setProfileForm({...profileForm, name: e.target.value})} required />
+                                    <label style={s.label}>Profile picture</label>
+                                    <input type="file" accept="image/*"
+                                        onChange={e => handleProfileImageUpload(e.target.files[0])}
+                                        style={{...s.input, padding:8}} />
+                                    {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
+                                    {profileForm.profile_picture && (
+                                        <img src={profileForm.profile_picture} alt="preview"
+                                            style={{width:80, height:80, borderRadius:'50%', objectFit:'cover', marginBottom:14}} />
+                                    )}
+                                    <label style={s.label}>M-Pesa number</label>
+                                    <input style={s.input} placeholder="e.g. 0712345678"
+                                        value={profileForm.mpesa_number}
+                                        onChange={e => setProfileForm({...profileForm, mpesa_number: e.target.value})} />
+                                    <div style={s.referralBox}>
+                                        <div style={s.label}>Your referral code</div>
+                                        <div style={s.referralCode}>{profile.referral_code}</div>
+                                    </div>
+                                    <button style={s.submitBtn} type="submit">Save changes</button>
+                                </form>
+                            </div>
+                        )}
+
+                        {profileTab === 'password' && (
+                            <div style={s.formBox}>
+                                <form onSubmit={handleChangePassword}>
+                                    <label style={s.label}>Current password</label>
+                                    <input style={s.input} type="password" placeholder="••••••••"
+                                        value={passwordForm.current_password}
+                                        onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})} required />
+                                    <label style={s.label}>New password</label>
+                                    <input style={s.input} type="password" placeholder="••••••••"
+                                        value={passwordForm.new_password}
+                                        onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})} required />
+                                    <label style={s.label}>Confirm new password</label>
+                                    <input style={s.input} type="password" placeholder="••••••••"
+                                        value={passwordForm.confirm_password}
+                                        onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})} required />
+                                    <button style={s.submitBtn} type="submit">Change password</button>
+                                </form>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
+function renderProductForm(form, setForm, handleImageUpload, uploading, s) {
+    return (
+        <>
+            <label style={s.label}>Product name *</label>
+            <input style={s.input} placeholder="e.g. Wireless Earbuds"
+                value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
+            <label style={s.label}>Description</label>
+            <input style={s.input} placeholder="Brief description"
+                value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                <div>
+                    <label style={s.label}>Price (KES) *</label>
+                    <input style={s.input} type="number" placeholder="e.g. 1500"
+                        value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
+                </div>
+                <div>
+                    <label style={s.label}>Stock quantity</label>
+                    <input style={s.input} type="number" placeholder="e.g. 50"
+                        value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                </div>
+            </div>
+            <label style={s.label}>Category</label>
+            <select style={s.input} value={form.category}
+                onChange={e => setForm({...form, category: e.target.value})}>
+                {['general','smartphones','laptops','tvs','boutique','appliances','furniture'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                ))}
+            </select>
+            <label style={s.label}>Specifications <span style={{color:'#5a6480'}}>(optional)</span></label>
+            <textarea style={{...s.input, height:80, resize:'none'}}
+                placeholder="e.g. RAM: 8GB, Storage: 256GB"
+                value={form.specifications}
+                onChange={e => setForm({...form, specifications: e.target.value})} />
+            <label style={s.label}>Product image <span style={{color:'#5a6480'}}>(optional)</span></label>
+            <input type="file" accept="image/*"
+                onChange={e => handleImageUpload(e.target.files[0])}
+                style={{...s.input, padding:8}} />
+            {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
+            {form.image && <img src={form.image} alt="preview" style={{width:'100%', height:140, objectFit:'cover', borderRadius:8, marginBottom:14}} />}
+        </>
+    );
+}
+
 const s = {
-    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0' , width: '100%', overflowX: 'hidden' },
-    nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 24px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-    logo: { color: '#5dd6a3', fontSize: 20, fontWeight: 600 },
-    navRight: { display: 'flex', alignItems: 'center', gap: 12 },
-    addBtn: { background: '#5dd6a3', border: 'none', color: '#0f2820', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0', width: '100%', overflowX: 'hidden' },
+    nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 16px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    logo: { color: '#5dd6a3', fontSize: 18, fontWeight: 600 },
+    navRight: { display: 'flex', alignItems: 'center', gap: 8 },
+    addBtn: { background: '#5dd6a3', border: 'none', color: '#0f2820', padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
     avatar: { width: 32, height: 32, borderRadius: '50%', background: '#1a3530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#5dd6a3' },
-    logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
-    tabBar: { background: '#161b27', borderBottom: '0.5px solid #2d3348', display: 'flex', padding: '0 24px', gap: 4 },
-    tab: { padding: '14px 16px', fontSize: 13, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent', display: 'flex', alignItems: 'center', gap: 6 },
-tabBadge: { background: '#f97066', color: '#fff', fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 20, minWidth: 18, textAlign: 'center' },
+    logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+    tabBar: { background: '#161b27', borderBottom: '0.5px solid #2d3348', display: 'flex', padding: '0 8px', gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
+    tab: { padding: '12px 8px', fontSize: 11, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', flexShrink: 0 },
+    tabLabel: { fontSize: 11 },
     tabActive: { color: '#e2e8f0', borderBottom: '2px solid #5dd6a3' },
-    content: { padding: 24 },
-    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 24 },
-    stat: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px 16px' },
+    tabBadge: { background: '#f97066', color: '#fff', fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 20 },
+    content: { padding: 16 },
+    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 20 },
+    stat: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 14px' },
     statLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
-    statVal: { fontSize: 22, fontWeight: 600, color: '#e2e8f0' },
+    statVal: { fontSize: 20, fontWeight: 600, color: '#e2e8f0' },
     twoCol: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 },
     panel: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, marginBottom: 16 },
     panelTitle: { fontSize: 12, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
-    row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '0.5px solid #1e2535' },
+    row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '0.5px solid #1e2535', flexWrap: 'wrap', gap: 8 },
     rowName: { fontSize: 13, color: '#e2e8f0' },
     rowDate: { fontSize: 11, color: '#5a6480', marginTop: 2 },
     rowAmt: { fontSize: 13, fontWeight: 600, color: '#5dd6a3' },
     empty: { color: '#5a6480', fontSize: 13 },
-    formBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 24 },
-    formTitle: { fontSize: 15, fontWeight: 600, color: '#e2e8f0', marginBottom: 16 },
+    formBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 20 },
+    formTitle: { fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 14 },
     label: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6 },
     input: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box', outline: 'none' },
     submitBtn: { background: '#5dd6a3', border: 'none', color: '#0f2820', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
     cancelBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '10px 20px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
-    productRow: { display: 'flex', alignItems: 'center', background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 16px', marginBottom: 10 },
+    productModeBtns: { display: 'flex', gap: 8, marginBottom: 16 },
+    modeBtn: { background: '#161b27', border: '0.5px solid #2d3348', color: '#8892a4', padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+    modeActive: { background: '#1a3530', border: '0.5px solid #5dd6a3', color: '#5dd6a3', padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+    bulkRow: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px', marginBottom: 14 },
+    bulkHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    addMoreBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '10px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer', width: '100%', marginBottom: 14 },
+    removeBtn: { background: '#2a1018', border: 'none', color: '#f09595', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+    productRow: { display: 'flex', alignItems: 'center', background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 16px', marginBottom: 10, flexWrap: 'wrap', gap: 10 },
     stockRow: { display: 'flex', alignItems: 'center', background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 16px', marginBottom: 10 },
     stockBadge: { fontSize: 11, padding: '3px 10px', borderRadius: 20, display: 'inline-block' },
     inStock: { background: '#0f2820', color: '#5dd6a3' },
@@ -442,9 +783,22 @@ tabBadge: { background: '#f97066', color: '#fff', fontSize: 11, fontWeight: 600,
     editBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
     deleteBtn: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
     deliverBtn: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
-    earningsCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '24px', marginBottom: 24, textAlign: 'center' },
+    earningsCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 20, textAlign: 'center' },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, marginTop: 8 },
-    orderTabs: { marginBottom: 14 },
+    contactBar: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 },
+    contactItem: { fontSize: 13, color: '#5a6480' },
+    profileHeader: { display: 'flex', alignItems: 'center', gap: 16, background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 20 },
+    avatarBox: { flexShrink: 0 },
+    avatarImg: { width: 70, height: 70, borderRadius: '50%', objectFit: 'cover' },
+    avatarPlaceholder: { width: 70, height: 70, borderRadius: '50%', background: '#1a3530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 600, color: '#5dd6a3' },
+    profileName: { fontSize: 18, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 },
+    profileEmail: { fontSize: 13, color: '#5a6480', marginBottom: 8 },
+    roleBadge: { fontSize: 11, background: '#0f2820', color: '#5dd6a3', padding: '3px 10px', borderRadius: 20, display: 'inline-block' },
+    profileTabs: { display: 'flex', gap: 4, marginBottom: 16, borderBottom: '0.5px solid #2d3348' },
+    profileTab: { padding: '10px 14px', fontSize: 13, color: '#5a6480', cursor: 'pointer', borderBottom: '2px solid transparent' },
+    profileTabActive: { color: '#e2e8f0', borderBottom: '2px solid #5dd6a3' },
+    referralBox: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '12px', marginBottom: 14 },
+    referralCode: { fontSize: 16, color: '#5dd6a3', fontFamily: 'monospace', marginTop: 4 },
     success: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
 };
