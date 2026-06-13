@@ -4,27 +4,27 @@ import API from '../api/axios';
 
 export default function Register() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ name: '', email: '', password: '', role: 'buyer', referral_code: '' });
+    const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '', role: 'buyer', referral_code: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
-          const payload = { ...form };
-if (form.role === 'affiliate' || form.role === 'seller') {
-    payload.payment_confirmed = true;
-}
-await API.post('/api/auth/register', payload);
-navigate('/login');  
-        } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
-        } finally {
-            setLoading(false);
-        }
-    };
+    e.preventDefault();
+    if (form.password !== form.confirm_password) {
+        setError('Passwords do not match');
+        return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+        await API.post('/api/auth/register', form);
+        navigate('/login');
+    } catch (err) {
+        setError(err.response?.data?.message || 'Registration failed');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const roles = [
         { value: 'buyer', label: 'Buyer', desc: 'Shop products', fee: null },
@@ -71,6 +71,10 @@ navigate('/login');
                     <label style={styles.label}>Password</label>
                     <input style={styles.input} type="password" placeholder="••••••••" value={form.password}
                         onChange={e => setForm({...form, password: e.target.value})} required />
+                    <label style={s.label}>Confirm password</label>
+                    <input style={s.input} type="password" placeholder="••••••••" value={form.confirm_password}
+                        onChange={e => setForm({...form, confirm_password: e.target.value})} required />
+
 
                     <label style={styles.label}>Referral code <span style={{color:'#5a6480'}}>(optional)</span></label>
                     <input style={styles.input} placeholder="e.g. REF1717820044" value={form.referral_code}

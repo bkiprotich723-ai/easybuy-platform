@@ -6,7 +6,7 @@ const router = express.Router();
 
 // BUY PRODUCT
 router.post("/buy", async (req, res) => {
-    const { product_id } = req.body;
+    const { product_id, quantity = 1 } = req.body;
     const buyer_id = req.user?.id;
     const client = await db.connect();
     try {
@@ -19,7 +19,13 @@ router.post("/buy", async (req, res) => {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        const amount = product.price;
+        // Check stock
+        if (product.stock < quantity) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: `Only ${product.stock} item(s) available in stock` });
+        }
+
+        const amount = product.price * quantity;
 
         const orderResult = await client.query(
             "INSERT INTO orders (buyer_id, product_id, amount) VALUES ($1, $2, $3) RETURNING id",
@@ -39,8 +45,60 @@ router.post("/buy", async (req, res) => {
         await client.query("UPDATE wallets SET balance = balance - $1 WHERE user_id = $2", [amount, buyer_id]);
         await client.query(
             `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'purchase', $2, $3)`,
-            [buyer_id, -amount, `Purchase of product #${product_id}`]
+            [buyer_id, -amount, `Purchase of ${quantity}x product #${product_id}`]
         );
+
+        // Deduct stock
+        await client.query(
+            "UPDATE products SET stock = stock - $1 WHERE id = $2",
+            [quantity, product_id]
+        );
+
+        // Seller earnings 90%
+        const sellerAmount = amount * 0.90;
+        await client.query(
+            "INSERT INTO seller_earnings (seller_id, order_id, amount) VALUES ($1, $2, $3)",
+            [product.seller_id, orderId, sellerAmount]
+        );
+        await client.query("UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [sellerAmount, product.seller_id]);
+        await client.query(
+            `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'sale', $2, $3)`,
+            [product.seller_id, sellerAmount, `Sale of ${quantity}x from order #${orderId}`]
+        );
+
+        // Referral commission 10%
+        const buyerResult = await client.query("SELECT referred_by FROM users WHERE id = $1", [buyer_id]);
+        const buyer = buyerResult.rows[0];
+        if (buyer?.referred_by) {
+            const referrerResult = await client.query(
+                "SELECT id FROM users WHERE referral_code = $1",
+                [buyer.referred_by]
+            );
+            const referrer = referrerResult.rows[0];
+            if (referrer) {
+                const commission = amount * 0.10;
+                const walletCheck = await client.query("SELECT id FROM wallets WHERE user_id = $1", [referrer.id]);
+                if (!walletCheck.rows[0]) {
+                    await client.query("INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [referrer.id]);
+                }
+                await client.query("UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [commission, referrer.id]);
+                await client.query(
+                    `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'commission', $2, $3)`,
+                    [referrer.id, commission, `10% commission from order #${orderId}`]
+                );
+            }
+        }
+
+        await client.query("COMMIT");
+        res.json({ message: "Purchase successful", order_id: orderId, amount, quantity });
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
 
         // Seller earnings 90%
         const sellerAmount = amount * 0.90;

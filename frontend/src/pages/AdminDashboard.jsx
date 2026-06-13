@@ -77,9 +77,11 @@ export default function AdminDashboard() {
     };
 
     const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
         logout();
         navigate('/');
-    };
+    }
+};
 
     const handleCloseTicket = async (id) => {
         try {

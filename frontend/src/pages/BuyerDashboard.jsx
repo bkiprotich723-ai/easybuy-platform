@@ -125,7 +125,12 @@ useEffect(() => {
         }
     };
 
-    const handleLogout = () => { logout(); navigate('/'); };
+    const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+        logout();
+        navigate('/');
+    }
+};
 
     const tabs = ['shop', 'orders', 'support', 'wallet'];
 

@@ -23,25 +23,26 @@ export default function Cart() {
         } catch (err) { console.error(err); }
     };
 
-    const handleQuantity = async (product_id, quantity) => {
-        try {
-            await API.patch(`/api/cart/${product_id}`, { quantity });
-            fetchCart();
-        } catch (err) { console.error(err); }
-    };
+    const handleQuantity = async (product_id, quantity, stock) => {
+    if (quantity > stock) {
+        setMessage(`❌ Only ${stock} item(s) available in stock`);
+        return;
+    }
+    try {
+        await API.patch(`/api/cart/${product_id}`, { quantity });
+        fetchCart();
+    } catch (err) { console.error(err); }
+};
 
     const handleBuyAll = async () => {
-        try {
-            for (const item of cart) {
-                await API.post('/api/transactions/buy', { product_id: item.product_id });
-            }
-            await API.delete('/api/cart');
-            setMessage('✅ All items purchased successfully!');
-            setCart([]);
-        } catch (err) {
-            setMessage('❌ ' + (err.response?.data?.message || 'Purchase failed'));
-        }
-    };
+    try {
+        await API.post('/api/cart/buyall');
+        setMessage('✅ All items purchased successfully!');
+        setCart([]);
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Purchase failed'));
+    }
+};
 
     const total = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
 
@@ -83,9 +84,9 @@ export default function Cart() {
                                     </div>
                                     <div style={s.itemActions}>
                                         <div style={s.qtyRow}>
-                                            <button style={s.qtyBtn} onClick={() => handleQuantity(item.product_id, item.quantity - 1)}>−</button>
+                                            <button style={s.qtyBtn} onClick={() => handleQuantity(item.product_id, item.quantity - 1, item.stock)}>−</button>
                                             <span style={s.qty}>{item.quantity}</span>
-                                            <button style={s.qtyBtn} onClick={() => handleQuantity(item.product_id, item.quantity + 1)}>+</button>
+                                            <button style={s.qtyBtn} onClick={() => handleQuantity(item.product_id, item.quantity + 1, item.stock)}>+</button>
                                         </div>
                                         <button style={s.removeBtn} onClick={() => handleRemove(item.product_id)}>Remove</button>
                                     </div>

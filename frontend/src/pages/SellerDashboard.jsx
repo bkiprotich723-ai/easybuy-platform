@@ -138,7 +138,12 @@ export default function SellerDashboard() {
         setActiveTab('products');
     };
 
-    const handleLogout = () => { logout(); navigate('/'); };
+    const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+        logout();
+        navigate('/');
+    }
+};
 
     const tabs = ['dashboard', 'products', 'orders', 'stock', 'withdrawals'];
 
