@@ -136,9 +136,11 @@ export default function AffiliateDashboard() {
     }
 
     function logout() {
+    if (window.confirm('Are you sure you want to log out?')) {
         localStorage.removeItem('token');
         navigate('/login');
     }
+}
 
     // ─────────────────────────────────────────────────────────────────────────
     if (loading) return (
