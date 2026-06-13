@@ -71,8 +71,8 @@ export default function Register() {
                     <label style={styles.label}>Password</label>
                     <input style={styles.input} type="password" placeholder="••••••••" value={form.password}
                         onChange={e => setForm({...form, password: e.target.value})} required />
-                    <label style={s.label}>Confirm password</label>
-                    <input style={s.input} type="password" placeholder="••••••••" value={form.confirm_password}
+                    <label style={styles.label}>Confirm password</label>
+                    <input style={styles.input} type="password" placeholder="••••••••" value={form.confirm_password}
                         onChange={e => setForm({...form, confirm_password: e.target.value})} required />
 
 
