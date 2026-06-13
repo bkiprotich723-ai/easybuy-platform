@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 
@@ -7,6 +7,8 @@ export default function Login() {
     const { login } = useAuth();
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: '', password: '' });
+    const [searchParams] = useSearchParams();
+    const redirect = searchParams.get('redirect');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,9 @@ export default function Login() {
             login(res.data.token);
 
             const role = res.data.user.role;
-            if (role === 'admin') navigate('/admin');
+            if (redirect) {
+                navigate(redirect);
+            } else if (role === 'admin') navigate('/admin');
             else if (role === 'seller') navigate('/seller');
             else if (role === 'affiliate') navigate('/affiliate');
             else navigate('/buyer');
@@ -36,7 +40,12 @@ export default function Login() {
             <div style={styles.card}>
                 <h2 style={styles.logo}>EasyBuy</h2>
                 <h3 style={styles.title}>Welcome back</h3>
-                <p style={styles.sub}>Log in to your account</p>
+                <p style={styles.sub}>{redirect ? '🔒 Log in to complete your purchase' : 'Log in to your account'}</p>
+                {redirect && (
+                   <div style={styles.redirectNotice}>
+                      After logging in you'll be taken back to complete your purchase.
+                   </div>
+                )}
 
                 {error && <div style={styles.error}>{error}</div>}
 
@@ -82,5 +91,6 @@ const styles = {
     btn: { width: '100%', background: '#7c6ef7', border: 'none', color: '#fff', padding: 11, borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', marginTop: 4 },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 16 },
     footer: { color: '#5a6480', fontSize: 13, textAlign: 'center', marginTop: 18 },
+    redirectNotice: { background: '#1e1a3a', border: '0.5px solid #3d3580', color: '#a89cf7', borderRadius: 8, padding: '10px 12px', fontSize: 13, marginBottom: 16 },
     link: { color: '#a89cf7', textDecoration: 'none' }
 };

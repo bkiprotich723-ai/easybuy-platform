@@ -40,31 +40,43 @@ export default function ProductDetail() {
     };
 
     const handleAddToCart = async () => {
-        try {
-            await API.post('/api/cart/add', { product_id: id });
-            setMessage('✅ Added to cart!');
-        } catch (err) {
-            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-        }
-    };
+    const token = localStorage.getItem('token');
+    if (!token) {
+        localStorage.setItem('pending_product', id);
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        if (ref) localStorage.setItem('pending_ref', ref);
+        navigate('/login?redirect=/product/' + id);
+        return;
+    }
+    try {
+        await API.post('/api/cart/add', { product_id: id });
+        setMessage('✅ Added to cart!');
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+    }
+};
 
     const handleBuy = async () => {
-        try {
-            // Pass the ref code from URL or localStorage so backend credits the affiliate
-            const ref = searchParams.get('ref') || localStorage.getItem('pending_ref');
-            const res = await API.post('/api/transactions/buy', {
-                product_id: id,
-                quantity,
-                ref_code: ref || null,
-            });
-            setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
-            // Clear pending ref after successful purchase
-            localStorage.removeItem('pending_ref');
-            fetchProduct();
-        } catch (err) {
-            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-        }
-    };
+    const token = localStorage.getItem('token');
+    if (!token) {
+        // Save product and ref to localStorage then redirect to login
+        localStorage.setItem('pending_product', id);
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        if (ref) localStorage.setItem('pending_ref', ref);
+        navigate('/login?redirect=/product/' + id);
+        return;
+    }
+    try {
+        const res = await API.post('/api/transactions/buy', { product_id: id });
+        setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
+        localStorage.removeItem('pending_product');
+        fetchProduct();
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+    }
+};
 
     const handleReview = async (e) => {
         e.preventDefault();

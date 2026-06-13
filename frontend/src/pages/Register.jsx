@@ -34,9 +34,13 @@ export default function Register() {
                 payload.payment_confirmed = true;
             }
             await API.post('/api/auth/register', payload);
-            // Clear stored ref after successful registration
             localStorage.removeItem('pending_ref');
-            navigate('/login');
+            const redirect = searchParams.get('redirect');
+            if (redirect) {
+                 navigate('/login?redirect=' + redirect);
+            } else {
+                navigate('/login');
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
         } finally {
@@ -55,7 +59,7 @@ export default function Register() {
             <div style={styles.card}>
                 <h2 style={styles.logo}>EasyBuy</h2>
                 <h3 style={styles.title}>Create your account</h3>
-                <p style={styles.sub}>Join thousands of Kenyans on EasyBuy</p>
+                <p style={styles.sub}>{searchParams.get('redirect') ? '🔒 Register to complete your purchase' : 'Join thousands of Kenyans on EasyBuy'}</p>
 
                 <div style={styles.roleRow}>
                     {roles.map(r => (
@@ -117,7 +121,10 @@ export default function Register() {
                 </form>
 
                 <p style={styles.footer}>
-                    Already have an account? <Link to="/login" style={styles.link}>Log in</Link>
+                    Already have an account?{' '}
+                    <Link to={`/login${searchParams.get('redirect') ? '?redirect=' + searchParams.get('redirect') : ''}`} style={styles.link}>
+                      Log in
+                    </Link>
                 </p>
             </div>
         </div>
