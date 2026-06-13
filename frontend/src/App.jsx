@@ -21,18 +21,17 @@ export default function App() {
                         <Route path="/" element={<Landing />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
+
+                        {/* Public — promo links must work without login */}
+                        <Route path="/product/:id" element={<ProductDetail />} />
+
                         <Route path="/affiliate" element={
                             <PrivateRoute roles={['affiliate']}>
                                 <AffiliateDashboard />
                             </PrivateRoute>
                         } />
-                        <Route path="/product/:id" element={
-                            <PrivateRoute roles={['buyer', 'seller', 'admin']}>
-                                <ProductDetail />
-                            </PrivateRoute>
-                        } />
                         <Route path="/profile" element={
-                            <PrivateRoute roles={['buyer', 'seller', 'admin']}>
+                            <PrivateRoute roles={['buyer', 'seller', 'admin', 'affiliate']}>
                                 <Profile />
                             </PrivateRoute>
                         } />

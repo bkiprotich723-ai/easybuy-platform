@@ -1,4 +1,3 @@
-
 const express = require("express");
 const db = require("../db");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -7,7 +6,7 @@ const router = express.Router();
 
 // BUY PRODUCT
 router.post("/buy", async (req, res) => {
-    const { product_id, quantity = 1 } = req.body;
+    const { product_id, quantity = 1, ref_code } = req.body;
     const buyer_id = req.user?.id;
     const client = await db.connect();
     try {
@@ -33,52 +32,77 @@ router.post("/buy", async (req, res) => {
         );
         const orderId = orderResult.rows[0].id;
 
+        // Deduct from buyer wallet
         const buyerWallet = await client.query(
-            "SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE",
-            [buyer_id]
+            "SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE", [buyer_id]
         );
         if (!buyerWallet.rows[0] || parseFloat(buyerWallet.rows[0].balance) < parseFloat(amount)) {
             await client.query("ROLLBACK");
             return res.status(400).json({ message: "Insufficient wallet balance" });
         }
 
-        await client.query("UPDATE wallets SET balance = balance - $1 WHERE user_id = $2", [amount, buyer_id]);
+        await client.query(
+            "UPDATE wallets SET balance = balance - $1 WHERE user_id = $2", [amount, buyer_id]
+        );
         await client.query(
             `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'purchase', $2, $3)`,
             [buyer_id, -amount, `Purchase of ${quantity}x product #${product_id}`]
         );
 
-        await client.query("UPDATE products SET stock = stock - $1 WHERE id = $2", [quantity, product_id]);
+        // Reduce stock
+        await client.query(
+            "UPDATE products SET stock = stock - $1 WHERE id = $2", [quantity, product_id]
+        );
 
+        // Credit seller 90%
         const sellerAmount = amount * 0.90;
         await client.query(
             "INSERT INTO seller_earnings (seller_id, order_id, amount) VALUES ($1, $2, $3)",
             [product.seller_id, orderId, sellerAmount]
         );
-        await client.query("UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [sellerAmount, product.seller_id]);
+        await client.query(
+            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [sellerAmount, product.seller_id]
+        );
         await client.query(
             `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'sale', $2, $3)`,
             [product.seller_id, sellerAmount, `Sale of ${quantity}x from order #${orderId}`]
         );
 
-        const buyerResult = await client.query("SELECT referred_by FROM users WHERE id = $1", [buyer_id]);
+        // ── Credit affiliate 10% commission ──────────────────────────────────
+        // Priority: buyer's referred_by on account first, then ref_code from request
+        const buyerResult = await client.query(
+            "SELECT referred_by FROM users WHERE id = $1", [buyer_id]
+        );
         const buyer = buyerResult.rows[0];
-        if (buyer?.referred_by) {
+
+        // Use account referral or fallback to ref_code sent from product promo link
+        const effectiveRefCode = buyer?.referred_by || ref_code || null;
+
+        if (effectiveRefCode) {
             const referrerResult = await client.query(
-                "SELECT id FROM users WHERE referral_code = $1",
-                [buyer.referred_by]
+                "SELECT id FROM users WHERE referral_code = $1", [effectiveRefCode]
             );
             const referrer = referrerResult.rows[0];
-            if (referrer) {
+            if (referrer && referrer.id !== buyer_id) {
                 const commission = amount * 0.10;
-                const walletCheck = await client.query("SELECT id FROM wallets WHERE user_id = $1", [referrer.id]);
+
+                // Create wallet if somehow missing
+                const walletCheck = await client.query(
+                    "SELECT id FROM wallets WHERE user_id = $1", [referrer.id]
+                );
                 if (!walletCheck.rows[0]) {
-                    await client.query("INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [referrer.id]);
+                    await client.query(
+                        "INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [referrer.id]
+                    );
                 }
-                await client.query("UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [commission, referrer.id]);
+
+                await client.query(
+                    "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+                    [commission, referrer.id]
+                );
                 await client.query(
                     `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'commission', $2, $3)`,
-                    [referrer.id, commission, `10% commission from order #${orderId}`]
+                    [referrer.id, commission, `10% commission from order #${orderId} — ${product.name}`]
                 );
             }
         }
@@ -115,8 +139,7 @@ router.get("/my-orders", async (req, res) => {
 router.get("/wallet", async (req, res) => {
     try {
         const result = await db.query(
-            "SELECT balance FROM wallets WHERE user_id = $1",
-            [req.user.id]
+            "SELECT balance FROM wallets WHERE user_id = $1", [req.user.id]
         );
         res.json({ balance: result.rows[0]?.balance || 0 });
     } catch (err) {
@@ -162,7 +185,9 @@ router.post("/deposit", verifyToken, async (req, res) => {
     const client = await db.connect();
     try {
         await client.query("BEGIN");
-        await client.query("UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [amount, user_id]);
+        await client.query(
+            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [amount, user_id]
+        );
         await client.query(
             `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'deposit', $2, $3)`,
             [user_id, amount, `Wallet deposit of KES ${amount}`]

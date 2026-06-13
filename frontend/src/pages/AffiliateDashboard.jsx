@@ -30,7 +30,12 @@ export default function AffiliateDashboard() {
     const [withdrawMsg, setWithdrawMsg] = useState('');
     const [withdrawing, setWithdrawing] = useState(false);
 
-    useEffect(() => { fetchDashboard(); }, []); // eslint-disable-line
+    useEffect(() => {
+        fetchDashboard();
+        // Poll wallet every 30 seconds to catch incoming commissions
+        const interval = setInterval(() => fetchDashboard(), 30000);
+        return () => clearInterval(interval);
+    }, []); // eslint-disable-line
 
     async function fetchDashboard() {
         try {

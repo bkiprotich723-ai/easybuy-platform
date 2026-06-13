@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import API from '../api/axios';
-
 
 export default function ProductDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [product, setProduct] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
     const [message, setMessage] = useState('');
+    const [quantity, setQuantity] = useState(1);
+
+    // Save ?ref= code to localStorage when landing on this page via promo link
+    useEffect(() => {
+        const ref = searchParams.get('ref');
+        if (ref) {
+            localStorage.setItem('pending_ref', ref);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
-    fetchProduct();
-    fetchReviews();
-}, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+        fetchProduct();
+        fetchReviews();
+    }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchProduct = async () => {
         try {
@@ -41,8 +50,16 @@ export default function ProductDetail() {
 
     const handleBuy = async () => {
         try {
-            const res = await API.post('/api/transactions/buy', { product_id: id });
+            // Pass the ref code from URL or localStorage so backend credits the affiliate
+            const ref = searchParams.get('ref') || localStorage.getItem('pending_ref');
+            const res = await API.post('/api/transactions/buy', {
+                product_id: id,
+                quantity,
+                ref_code: ref || null,
+            });
             setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
+            // Clear pending ref after successful purchase
+            localStorage.removeItem('pending_ref');
             fetchProduct();
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
@@ -66,22 +83,22 @@ export default function ProductDetail() {
         : null;
 
     if (!product) return (
-        <div style={{background:'#0f1117', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
-            <div style={{color:'#5a6480'}}>Loading...</div>
+        <div style={{ background: '#0f1117', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ color: '#5a6480' }}>Loading...</div>
         </div>
     );
 
     return (
         <div style={s.page}>
             <div style={s.nav}>
-                <button style={s.backBtn} onClick={() => navigate('/buyer')}>← Back</button>
+                <button style={s.backBtn} onClick={() => navigate(-1)}>← Back</button>
                 <div style={s.logo}>🛍 EasyBuy</div>
             </div>
 
             <div style={s.content}>
                 {message && (
                     <div style={message.startsWith('✅') ? s.success : s.error} onClick={() => setMessage('')}>
-                        {message} <span style={{float:'right'}}>✕</span>
+                        {message} <span style={{ float: 'right' }}>✕</span>
                     </div>
                 )}
 
@@ -102,10 +119,7 @@ export default function ProductDetail() {
                             </div>
                         )}
                         <div style={s.price}>KES {parseFloat(product.price).toLocaleString()}</div>
-                        <div style={{
-                            ...s.stockBadge,
-                            ...(product.stock === 0 ? s.outOfStock : s.inStock)
-                        }}>
+                        <div style={{ ...s.stockBadge, ...(product.stock === 0 ? s.outOfStock : s.inStock) }}>
                             {product.stock === 0 ? '❌ Out of stock' : `✅ ${product.stock} in stock`}
                         </div>
                         <p style={s.description}>{product.description}</p>
@@ -115,11 +129,22 @@ export default function ProductDetail() {
                                 <p style={s.specsText}>{product.specifications}</p>
                             </div>
                         )}
+
+                        {/* Quantity selector */}
+                        {product.stock > 0 && (
+                            <div style={s.qtyRow}>
+                                <span style={s.qtyLabel}>Quantity:</span>
+                                <button style={s.qtyBtn} onClick={() => setQuantity(q => Math.max(1, q - 1))}>−</button>
+                                <span style={s.qtyNum}>{quantity}</span>
+                                <button style={s.qtyBtn} onClick={() => setQuantity(q => Math.min(product.stock, q + 1))}>+</button>
+                            </div>
+                        )}
+
                         <div style={s.actionRow}>
                             <button style={s.cartBtn} onClick={handleAddToCart} disabled={product.stock === 0}>
                                 🛒 Add to cart
                             </button>
-                            <button style={{...s.buyBtn, ...(product.stock === 0 ? s.disabled : {})}}
+                            <button style={{ ...s.buyBtn, ...(product.stock === 0 ? s.disabled : {}) }}
                                 onClick={handleBuy} disabled={product.stock === 0}>
                                 Buy Now
                             </button>
@@ -135,16 +160,16 @@ export default function ProductDetail() {
                             <form onSubmit={handleReview}>
                                 <label style={s.label}>Rating</label>
                                 <select style={s.input} value={reviewForm.rating}
-                                    onChange={e => setReviewForm({...reviewForm, rating: parseInt(e.target.value)})}>
-                                    {[5,4,3,2,1].map(r => (
+                                    onChange={e => setReviewForm({ ...reviewForm, rating: parseInt(e.target.value) })}>
+                                    {[5, 4, 3, 2, 1].map(r => (
                                         <option key={r} value={r}>{'⭐'.repeat(r)} ({r}/5)</option>
                                     ))}
                                 </select>
                                 <label style={s.label}>Comment</label>
-                                <textarea style={{...s.input, height:80, resize:'none'}}
+                                <textarea style={{ ...s.input, height: 80, resize: 'none' }}
                                     placeholder="Share your experience..."
                                     value={reviewForm.comment}
-                                    onChange={e => setReviewForm({...reviewForm, comment: e.target.value})} />
+                                    onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })} />
                                 <button style={s.submitBtn} type="submit">Submit Review</button>
                             </form>
                         </div>
@@ -195,6 +220,10 @@ const s = {
     specsBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px 16px' },
     specsTitle: { fontSize: 12, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
     specsText: { fontSize: 13, color: '#a3adc2', lineHeight: 1.7 },
+    qtyRow: { display: 'flex', alignItems: 'center', gap: 10 },
+    qtyLabel: { color: '#8892a4', fontSize: 13 },
+    qtyBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#e2e8f0', width: 30, height: 30, borderRadius: 6, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    qtyNum: { color: '#e2e8f0', fontWeight: 600, fontSize: 15, minWidth: 24, textAlign: 'center' },
     actionRow: { display: 'flex', gap: 12, flexWrap: 'wrap' },
     cartBtn: { flex: 1, background: '#1e2535', border: '0.5px solid #2d3348', color: '#e2e8f0', padding: '12px', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 },
     buyBtn: { flex: 1, background: '#7c6ef7', border: 'none', color: '#fff', padding: '12px', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 },
