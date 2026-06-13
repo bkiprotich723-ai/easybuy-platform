@@ -18,14 +18,15 @@ export default function BuyerDashboard() {
     const [cartCount, setCartCount] = useState(0);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('all');
-
+    const [profilePic, setProfilePic] = useState('');
     const categories = ['all', 'smartphones', 'laptops', 'tvs', 'boutique', 'appliances', 'furniture', 'general'];
 
-    useEffect(() => {
+useEffect(() => {
     fetchOrders();
     fetchWallet();
     fetchTickets();
     fetchCartCount();
+    fetchProfilePic();
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
@@ -66,7 +67,12 @@ useEffect(() => {
             setCartCount(res.data.length);
         } catch (err) { console.error(err); }
     };
-
+    const fetchProfilePic = async () => {
+    try {
+        const res = await API.get('/api/profile');
+        setProfilePic(res.data.profile_picture || '');
+    } catch (err) { console.error(err); }
+};  
     const handleAddToCart = async (product_id) => {
         try {
             await API.post('/api/cart/add', { product_id });
@@ -144,7 +150,10 @@ useEffect(() => {
                         🛒 {cartCount > 0 && <span style={s.cartBadge}>{cartCount}</span>}
                     </div>
                     <div style={s.avatar} onClick={() => navigate('/profile')}>
-                        {user?.name?.charAt(0).toUpperCase()}
+                        {profilePic
+                            ? <img src={profilePic} alt="profile" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
+                            : user?.name?.charAt(0).toUpperCase()
+                        }
                     </div>
                     <button style={s.logoutBtn} onClick={handleLogout}>Log out</button>
                 </div>

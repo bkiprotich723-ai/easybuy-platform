@@ -271,7 +271,12 @@ export default function SellerDashboard() {
                     <button style={s.addBtn} onClick={() => { setShowForm(true); setEditProduct(null); setForm({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }); setActiveTab('products'); }}>
                         + Add
                     </button>
-                    <div style={s.avatar}>{user?.name?.charAt(0).toUpperCase()}</div>
+                <div style={s.avatar} onClick={() => setActiveTab('profile')}>
+                        {profileForm.profile_picture
+                        ? <img src={profileForm.profile_picture} alt="profile" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
+                        : user?.name?.charAt(0).toUpperCase()
+                        }
+        </div>
                     <button style={s.logoutBtn} onClick={handleLogout}>Log out</button>
                 </div>
             </div>
@@ -645,9 +650,21 @@ export default function SellerDashboard() {
                                     <input style={s.input} value={profileForm.name}
                                         onChange={e => setProfileForm({...profileForm, name: e.target.value})} required />
                                     <label style={s.label}>Profile picture</label>
-                                    <input type="file" accept="image/*"
-                                        onChange={e => handleProfileImageUpload(e.target.files[0])}
-                                        style={{...s.input, padding:8}} />
+                                    <div style={{marginBottom:14, textAlign:'center'}}>
+                                        <label htmlFor="profile-pic-upload" style={{cursor:'pointer'}}>
+                                         <div style={{...s.avatarPlaceholder, width:90, height:90, fontSize:32, margin:'0 auto 8px', position:'relative'}}>
+                                             {profileForm.profile_picture
+                                              ? <img src={profileForm.profile_picture} alt="profile" style={{width:90, height:90, borderRadius:'50%', objectFit:'cover'}} />
+                                              : profile?.name?.charAt(0).toUpperCase()
+                                             }
+                                             <div style={{position:'absolute', bottom:0, right:0, background:'#5dd6a3', borderRadius:'50%', width:24, height:24, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12}}>✏️</div>
+                                         </div>
+                                         <div style={{color:'#5a6480', fontSize:12}}>Tap to change photo</div>
+                                        </label>
+                                        <input id="profile-pic-upload" type="file" accept="image/*"
+                                         onChange={e => handleProfileImageUpload(e.target.files[0])}
+                                         style={{display:'none'}} />
+                                    </div>
                                     {uploading && <div style={{color:'#5a6480', fontSize:12, marginBottom:10}}>Uploading...</div>}
                                     {profileForm.profile_picture && (
                                         <img src={profileForm.profile_picture} alt="preview"
