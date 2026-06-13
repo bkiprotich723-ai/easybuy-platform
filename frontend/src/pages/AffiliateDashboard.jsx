@@ -1,51 +1,113 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 
+const CLOUD_NAME = 'dalljawxl';
+const UPLOAD_PRESET = 'easybuy_products';
+
 export default function AffiliateDashboard() {
     const navigate = useNavigate();
+    const fileInputRef = useRef();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [copied, setCopied] = useState(false);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [copied, setCopied] = useState('');
+
+    // Profile state
+    const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
+    const [editMode, setEditMode] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [profileMsg, setProfileMsg] = useState('');
+
+    // Password state
+    const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+    const [pwMsg, setPwMsg] = useState('');
+    const [pwLoading, setPwLoading] = useState(false);
+
+    // Withdraw state
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [withdrawMsg, setWithdrawMsg] = useState('');
     const [withdrawing, setWithdrawing] = useState(false);
-    const [activeTab, setActiveTab] = useState('overview');
 
-    
-    useEffect(() => {
-    fetchDashboard();
-}, []); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { fetchDashboard(); }, []); // eslint-disable-line
 
     async function fetchDashboard() {
         try {
-            const res = await API.get('/api/affiliate/dashboard');
-            setData(res.data);
+            const [dashRes, profileRes] = await Promise.all([
+                API.get('/api/affiliate/dashboard'),
+                API.get('/api/profile'),
+            ]);
+            setData(dashRes.data);
+            setProfileForm({
+                name: profileRes.data.name || '',
+                profile_picture: profileRes.data.profile_picture || '',
+                mpesa_number: profileRes.data.mpesa_number || '',
+            });
         } catch (err) {
-            if (err.response?.status === 401) {
-                navigate('/login');
-            } else {
-                setError('Failed to load dashboard.');
-            }
+            if (err.response?.status === 401) navigate('/login');
+            else setError('Failed to load dashboard.');
         } finally {
             setLoading(false);
         }
     }
 
-    function copyReferralCode() {
-        navigator.clipboard.writeText(data.referral_code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    // ── Cloudinary upload (same as Profile.jsx) ───────────────────────────────
+    async function handleImageUpload(file) {
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
+        formData.append('cloud_name', CLOUD_NAME);
+        try {
+            const res = await fetch(
+                `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                { method: 'POST', body: formData }
+            );
+            const json = await res.json();
+            setProfileForm(f => ({ ...f, profile_picture: json.secure_url }));
+        } catch {
+            setProfileMsg('❌ Image upload failed');
+        } finally {
+            setUploading(false);
+        }
     }
 
-    function copyReferralLink() {
-        const link = `${window.location.origin}/register?ref=${data.referral_code}`;
-        navigator.clipboard.writeText(link);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    // ── Save profile (same endpoint as Profile.jsx) ───────────────────────────
+    async function handleProfileSave(e) {
+        e.preventDefault();
+        setProfileMsg('');
+        try {
+            await API.put('/api/profile/update', profileForm);
+            setProfileMsg('✅ Profile updated successfully');
+            setEditMode(false);
+            fetchDashboard();
+        } catch (err) {
+            setProfileMsg('❌ ' + (err.response?.data?.message || 'Update failed'));
+        }
     }
 
+    // ── Change password (same endpoint as Profile.jsx) ────────────────────────
+    async function handlePasswordChange(e) {
+        e.preventDefault();
+        if (pwForm.new_password !== pwForm.confirm_password) {
+            setPwMsg('❌ New passwords do not match');
+            return;
+        }
+        setPwLoading(true);
+        setPwMsg('');
+        try {
+            await API.put('/api/profile/password', pwForm);
+            setPwMsg('✅ Password changed successfully');
+            setPwForm({ current_password: '', new_password: '', confirm_password: '' });
+        } catch (err) {
+            setPwMsg('❌ ' + (err.response?.data?.message || 'Failed'));
+        } finally {
+            setPwLoading(false);
+        }
+    }
+
+    // ── Withdraw ──────────────────────────────────────────────────────────────
     async function handleWithdraw(e) {
         e.preventDefault();
         setWithdrawing(true);
@@ -54,12 +116,18 @@ export default function AffiliateDashboard() {
             await API.post('/api/withdrawals/request', { amount: parseFloat(withdrawAmount) });
             setWithdrawMsg('✅ Withdrawal request submitted!');
             setWithdrawAmount('');
-            fetchDashboard(); // refresh balance
+            fetchDashboard();
         } catch (err) {
-            setWithdrawMsg(err.response?.data?.message || 'Withdrawal failed.');
+            setWithdrawMsg('❌ ' + (err.response?.data?.message || 'Withdrawal failed'));
         } finally {
             setWithdrawing(false);
         }
+    }
+
+    function copyText(text, label) {
+        navigator.clipboard.writeText(text);
+        setCopied(label);
+        setTimeout(() => setCopied(''), 2000);
     }
 
     function logout() {
@@ -67,32 +135,40 @@ export default function AffiliateDashboard() {
         navigate('/login');
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
     if (loading) return (
         <div style={s.page}>
-            <div style={s.loadingBox}>
-                <div style={s.spinner} />
-                <p style={{ color: '#5a6480', marginTop: 12 }}>Loading your dashboard…</p>
+            <div style={s.center}>
+                <p style={{ color: '#5a6480' }}>Loading dashboard…</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div style={s.page}>
-            <div style={{ color: '#f09595', textAlign: 'center' }}>{error}</div>
+            <div style={s.center}><p style={{ color: '#f09595' }}>{error}</p></div>
         </div>
     );
 
     const balance = parseFloat(data.wallet_balance || 0);
     const totalEarned = parseFloat(data.total_earned || 0);
+    const referralLink = `${window.location.origin}/register?ref=${data.referral_code}`;
 
     return (
         <div style={s.page}>
-            {/* ── Top nav ── */}
+
+            {/* ── Navbar ── */}
             <div style={s.nav}>
-                <span style={s.navLogo}>EasyBuy</span>
+                <span style={s.navLogo}>🛍 EasyBuy</span>
                 <div style={s.navRight}>
-                    <span style={s.navName}>👋 {data.name}</span>
-                    <span style={s.navRole}>Affiliate</span>
+                    <div style={s.navAvatar} onClick={() => { setActiveTab('profile'); setEditMode(false); }}>
+                        {profileForm.profile_picture
+                            ? <img src={profileForm.profile_picture} alt="avatar" style={s.navAvatarImg} />
+                            : <span style={s.navAvatarInitial}>{data.name?.[0]?.toUpperCase()}</span>
+                        }
+                    </div>
+                    <span style={s.navName}>{data.name}</span>
+                    <span style={s.navBadge}>Affiliate</span>
                     <button style={s.logoutBtn} onClick={logout}>Log out</button>
                 </div>
             </div>
@@ -101,192 +177,234 @@ export default function AffiliateDashboard() {
 
                 {/* ── Stats row ── */}
                 <div style={s.statsRow}>
-                    <div style={s.statCard}>
-                        <div style={s.statLabel}>Wallet balance</div>
-                        <div style={s.statValue}>
-                            KES <span style={{ color: balance >= 0 ? '#6ee7b7' : '#f09595' }}>
-                                {balance.toFixed(2)}
-                            </span>
+                    {[
+                        { label: 'Wallet balance', value: `KES ${balance.toFixed(2)}`, color: balance >= 0 ? '#6ee7b7' : '#f09595' },
+                        { label: 'Total earned', value: `KES ${totalEarned.toFixed(2)}`, color: '#a89cf7' },
+                        { label: 'People referred', value: data.referrals?.length || 0, color: '#f7c948' },
+                        { label: 'Commissions', value: data.transactions?.filter(t => parseFloat(t.amount) > 0).length || 0, color: '#6ee7b7' },
+                    ].map((stat, i) => (
+                        <div key={i} style={s.statCard}>
+                            <div style={s.statLabel}>{stat.label}</div>
+                            <div style={{ ...s.statValue, color: stat.color }}>{stat.value}</div>
                         </div>
-                    </div>
-                    <div style={s.statCard}>
-                        <div style={s.statLabel}>Total earned</div>
-                        <div style={s.statValue}>KES <span style={{ color: '#a89cf7' }}>{totalEarned.toFixed(2)}</span></div>
-                    </div>
-                    <div style={s.statCard}>
-                        <div style={s.statLabel}>People referred</div>
-                        <div style={s.statValue}><span style={{ color: '#f7c948' }}>{data.referrals?.length || 0}</span></div>
-                    </div>
-                    <div style={s.statCard}>
-                        <div style={s.statLabel}>Commissions paid</div>
-                        <div style={s.statValue}><span style={{ color: '#6ee7b7' }}>{data.transactions?.length || 0}</span></div>
-                    </div>
+                    ))}
                 </div>
 
-                {/* ── Referral code card ── */}
+                {/* ── Referral card ── */}
                 <div style={s.refCard}>
                     <div style={s.refLeft}>
                         <div style={s.refTitle}>Your referral code</div>
                         <div style={s.refCode}>{data.referral_code}</div>
                         <div style={s.refDesc}>
-                            Share this code or link. You earn <b style={{ color: '#6ee7b7' }}>KES 30</b> when someone registers
-                            as an affiliate or seller, and <b style={{ color: '#a89cf7' }}>10%</b> of every purchase they make.
+                            Earn <b style={{ color: '#6ee7b7' }}>KES 30</b> instantly when someone registers as
+                            affiliate or seller, and <b style={{ color: '#a89cf7' }}>10%</b> of every purchase they make.
                         </div>
                     </div>
                     <div style={s.refBtns}>
-                        <button style={s.copyBtn} onClick={copyReferralCode}>
-                            {copied ? '✅ Copied!' : '📋 Copy code'}
+                        <button style={s.copyBtn} onClick={() => copyText(data.referral_code, 'code')}>
+                            {copied === 'code' ? '✅ Copied!' : '📋 Copy code'}
                         </button>
-                        <button style={{ ...s.copyBtn, background: '#1e1a3a', borderColor: '#7c6ef7' }} onClick={copyReferralLink}>
-                            🔗 Copy link
+                        <button style={{ ...s.copyBtn, borderColor: '#7c6ef7', color: '#a89cf7' }}
+                            onClick={() => copyText(referralLink, 'link')}>
+                            {copied === 'link' ? '✅ Copied!' : '🔗 Copy referral link'}
                         </button>
                     </div>
                 </div>
 
                 {/* ── Tabs ── */}
-                <div style={s.tabRow}>
-                    {['overview', 'referrals', 'earnings', 'products'].map(tab => (
-                        <button key={tab} style={{ ...s.tab, ...(activeTab === tab ? s.tabActive : {}) }}
-                            onClick={() => setActiveTab(tab)}>
-                            {{ overview: '📊 Overview', referrals: '👥 Referrals', earnings: '💰 Earnings', products: '🛍️ Products' }[tab]}
+                <div style={s.tabBar}>
+                    {[
+                        { id: 'overview', label: '📊 Overview' },
+                        { id: 'referrals', label: '👥 Referrals' },
+                        { id: 'earnings', label: '💰 Earnings' },
+                        { id: 'products', label: '🛍️ Products' },
+                        { id: 'profile', label: '👤 Profile' },
+                    ].map(t => (
+                        <button key={t.id}
+                            style={{ ...s.tab, ...(activeTab === t.id ? s.tabActive : {}) }}
+                            onClick={() => setActiveTab(t.id)}>
+                            {t.label}
                         </button>
                     ))}
                 </div>
 
-                {/* ── Tab: Overview (withdraw) ── */}
+                {/* ════ TAB: Overview ════ */}
                 {activeTab === 'overview' && (
-                    <div style={s.tabContent}>
+                    <div>
                         <div style={s.section}>
                             <div style={s.sectionTitle}>Withdraw funds</div>
-                            <div style={s.withdrawCard}>
-                                <p style={s.withdrawNote}>
-                                    Available balance: <b style={{ color: '#6ee7b7' }}>KES {balance.toFixed(2)}</b>.
-                                    Minimum withdrawal is KES 50.
+                            <div style={s.card}>
+                                <p style={s.note}>
+                                    Available: <b style={{ color: '#6ee7b7' }}>KES {balance.toFixed(2)}</b> — Minimum KES 50
                                 </p>
                                 <form onSubmit={handleWithdraw} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                                    <input
-                                        style={s.withdrawInput}
-                                        type="number"
-                                        placeholder="Amount (KES)"
-                                        min="50"
-                                        max={balance}
-                                        value={withdrawAmount}
-                                        onChange={e => setWithdrawAmount(e.target.value)}
-                                        required
-                                    />
-                                    <button style={s.withdrawBtn} type="submit" disabled={withdrawing || balance < 50}>
+                                    <input style={s.smallInput} type="number" placeholder="Amount (KES)"
+                                        min="50" max={balance} value={withdrawAmount}
+                                        onChange={e => setWithdrawAmount(e.target.value)} required />
+                                    <button style={s.primaryBtn} type="submit"
+                                        disabled={withdrawing || balance < 50}>
                                         {withdrawing ? 'Requesting…' : 'Request withdrawal'}
                                     </button>
                                 </form>
-                                {withdrawMsg && (
-                                    <div style={{ ...s.withdrawMsg, color: withdrawMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>
-                                        {withdrawMsg}
-                                    </div>
-                                )}
+                                {withdrawMsg && <div style={{ ...s.msg, color: withdrawMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>{withdrawMsg}</div>}
                             </div>
                         </div>
-
-                        {/* Recent activity */}
                         <div style={s.section}>
                             <div style={s.sectionTitle}>Recent activity</div>
-                            {data.transactions?.length === 0 ? (
-                                <div style={s.empty}>No earnings yet. Share your referral code to start earning!</div>
-                            ) : (
-                                <div style={s.table}>
-                                    <div style={s.tableHead}>
-                                        <span>Description</span><span>Amount</span><span>Date</span>
-                                    </div>
-                                    {data.transactions?.slice(0, 5).map((tx, i) => (
-                                        <div key={i} style={s.tableRow}>
-                                            <span style={{ color: '#c4cad8' }}>{tx.description}</span>
-                                            <span style={{ color: '#6ee7b7', fontWeight: 600 }}>+KES {parseFloat(tx.amount).toFixed(2)}</span>
-                                            <span style={{ color: '#5a6480' }}>{new Date(tx.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            <TxTable rows={data.transactions?.slice(0, 5)} />
                         </div>
                     </div>
                 )}
 
-                {/* ── Tab: Referrals ── */}
+                {/* ════ TAB: Referrals ════ */}
                 {activeTab === 'referrals' && (
-                    <div style={s.tabContent}>
+                    <div>
                         <div style={s.sectionTitle}>People you referred ({data.referrals?.length || 0})</div>
-                        {data.referrals?.length === 0 ? (
-                            <div style={s.empty}>No referrals yet. Share your code to get started!</div>
-                        ) : (
-                            <div style={s.table}>
-                                <div style={s.tableHead}>
+                        {data.referrals?.length === 0
+                            ? <div style={s.empty}>No referrals yet — share your link to start earning!</div>
+                            : <div style={s.tableWrap}>
+                                <div style={{ ...s.tableRow, ...s.tableHead }}>
                                     <span>Name</span><span>Role</span><span>Joined</span>
                                 </div>
                                 {data.referrals.map((r, i) => (
                                     <div key={i} style={s.tableRow}>
                                         <span style={{ color: '#c4cad8' }}>{r.name}</span>
-                                        <span style={s.roleBadge(r.role)}>{r.role}</span>
+                                        <span style={s.badge(r.role)}>{r.role}</span>
                                         <span style={{ color: '#5a6480' }}>{new Date(r.created_at).toLocaleDateString()}</span>
                                     </div>
                                 ))}
                             </div>
-                        )}
+                        }
                     </div>
                 )}
 
-                {/* ── Tab: Earnings ── */}
+                {/* ════ TAB: Earnings ════ */}
                 {activeTab === 'earnings' && (
-                    <div style={s.tabContent}>
+                    <div>
                         <div style={s.sectionTitle}>Commission history</div>
-                        {data.transactions?.length === 0 ? (
-                            <div style={s.empty}>No commissions yet.</div>
-                        ) : (
-                            <div style={s.table}>
-                                <div style={s.tableHead}>
-                                    <span>Description</span><span>Type</span><span>Amount</span><span>Date</span>
-                                </div>
-                                {data.transactions.map((tx, i) => (
-                                    <div key={i} style={s.tableRow}>
-                                        <span style={{ color: '#c4cad8' }}>{tx.description}</span>
-                                        <span style={{ color: '#a89cf7', fontSize: 11 }}>{tx.type}</span>
-                                        <span style={{ color: '#6ee7b7', fontWeight: 600 }}>+KES {parseFloat(tx.amount).toFixed(2)}</span>
-                                        <span style={{ color: '#5a6480' }}>{new Date(tx.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        <TxTable rows={data.transactions} showType />
                     </div>
                 )}
 
-                {/* ── Tab: Products ── */}
+                {/* ════ TAB: Products ════ */}
                 {activeTab === 'products' && (
-                    <div style={s.tabContent}>
+                    <div>
                         <div style={s.sectionTitle}>Products to promote</div>
                         <p style={{ color: '#5a6480', fontSize: 13, marginBottom: 20 }}>
-                            Share any product link with your referral code — you earn 10% when your referrals buy.
+                            Copy a promo link — when your referrals click it and buy, you earn 10% instantly.
                         </p>
-                        {data.products?.length === 0 ? (
-                            <div style={s.empty}>No products listed yet.</div>
-                        ) : (
-                            <div style={s.productGrid}>
-                                {data.products.map((p, i) => (
-                                    <div key={i} style={s.productCard}>
-                                        {p.image && (
-                                            <img src={p.image} alt={p.name} style={s.productImg} />
-                                        )}
-                                        <div style={s.productName}>{p.name}</div>
-                                        <div style={s.productPrice}>KES {parseFloat(p.price).toFixed(2)}</div>
-                                        <div style={s.productCommission}>
-                                            Your cut: <b style={{ color: '#6ee7b7' }}>KES {(p.price * 0.1).toFixed(2)}</b>
+                        {data.products?.length === 0
+                            ? <div style={s.empty}>No products listed yet.</div>
+                            : <div style={s.productGrid}>
+                                {data.products.map((p, i) => {
+                                    const promoLink = `${window.location.origin}/product/${p.id}?ref=${data.referral_code}`;
+                                    const label = `product-${p.id}`;
+                                    return (
+                                        <div key={i} style={s.productCard}>
+                                            {p.image && <img src={p.image} alt={p.name} style={s.productImg} />}
+                                            <div style={s.productName}>{p.name}</div>
+                                            <div style={s.productPrice}>KES {parseFloat(p.price).toFixed(2)}</div>
+                                            <div style={s.productCut}>
+                                                Your cut: <b style={{ color: '#6ee7b7' }}>KES {(p.price * 0.1).toFixed(2)}</b>
+                                            </div>
+                                            <button style={s.shareBtn} onClick={() => copyText(promoLink, label)}>
+                                                {copied === label ? '✅ Copied!' : '🔗 Copy promo link'}
+                                            </button>
                                         </div>
-                                        <button style={s.shareBtn} onClick={() => {
-                                            const link = `${window.location.origin}/product/${p.id}?ref=${data.referral_code}`;
-                                            navigator.clipboard.writeText(link);
-                                        }}>
-                                            🔗 Copy promo link
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
-                        )}
+                        }
+                    </div>
+                )}
+
+                {/* ════ TAB: Profile ════ */}
+                {activeTab === 'profile' && (
+                    <div style={{ display: 'grid', gap: 16 }}>
+
+                        {/* Profile info + picture */}
+                        <div style={s.card}>
+                            <div style={s.sectionTitle}>Profile</div>
+
+                            {/* Avatar */}
+                            <div style={s.profileHeader}>
+                                <div style={s.bigAvatar}>
+                                    {profileForm.profile_picture
+                                        ? <img src={profileForm.profile_picture} alt="avatar" style={s.bigAvatarImg} />
+                                        : <div style={s.bigAvatarInitial}>{data.name?.[0]?.toUpperCase()}</div>
+                                    }
+                                </div>
+                                <div>
+                                    <div style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 16 }}>{data.name}</div>
+                                    <div style={{ color: '#5a6480', fontSize: 13 }}>{data.email}</div>
+                                    <div style={{ color: '#a89cf7', fontSize: 12, marginTop: 4, fontFamily: 'monospace', letterSpacing: 2 }}>
+                                        {data.referral_code}
+                                    </div>
+                                    <button style={{ ...s.shareBtn, marginTop: 10, padding: '6px 14px', width: 'auto' }}
+                                        onClick={() => setEditMode(e => !e)}>
+                                        {editMode ? 'Cancel' : '✏️ Edit profile'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {editMode && (
+                                <form onSubmit={handleProfileSave} style={{ marginTop: 16 }}>
+                                    <label style={s.label}>Full name</label>
+                                    <input style={s.input} value={profileForm.name}
+                                        onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} required />
+
+                                    <label style={s.label}>Profile picture</label>
+                                    <input type="file" accept="image/*" ref={fileInputRef}
+                                        onChange={e => handleImageUpload(e.target.files[0])}
+                                        style={{ ...s.input, padding: 8 }} />
+                                    {uploading && <div style={{ color: '#5a6480', fontSize: 12, marginBottom: 10 }}>Uploading…</div>}
+                                    {profileForm.profile_picture && (
+                                        <img src={profileForm.profile_picture} alt="preview"
+                                            style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', marginBottom: 14 }} />
+                                    )}
+
+                                    <label style={s.label}>M-Pesa number <span style={{ color: '#5a6480' }}>(for withdrawals)</span></label>
+                                    <input style={s.input} placeholder="e.g. 0712345678"
+                                        value={profileForm.mpesa_number}
+                                        onChange={e => setProfileForm(f => ({ ...f, mpesa_number: e.target.value }))} />
+
+                                    <button style={s.primaryBtn} type="submit">Save changes</button>
+                                    {profileMsg && (
+                                        <div style={{ ...s.msg, marginTop: 10, color: profileMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>
+                                            {profileMsg}
+                                        </div>
+                                    )}
+                                </form>
+                            )}
+                        </div>
+
+                        {/* Change password */}
+                        <div style={s.card}>
+                            <div style={s.sectionTitle}>Change password</div>
+                            <form onSubmit={handlePasswordChange}>
+                                <label style={s.label}>Current password</label>
+                                <input style={s.input} type="password" placeholder="••••••••"
+                                    value={pwForm.current_password}
+                                    onChange={e => setPwForm(f => ({ ...f, current_password: e.target.value }))} required />
+                                <label style={s.label}>New password</label>
+                                <input style={s.input} type="password" placeholder="••••••••"
+                                    value={pwForm.new_password}
+                                    onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))} required />
+                                <label style={s.label}>Confirm new password</label>
+                                <input style={s.input} type="password" placeholder="••••••••"
+                                    value={pwForm.confirm_password}
+                                    onChange={e => setPwForm(f => ({ ...f, confirm_password: e.target.value }))} required />
+                                <button style={s.primaryBtn} type="submit" disabled={pwLoading}>
+                                    {pwLoading ? 'Updating…' : 'Change password'}
+                                </button>
+                                {pwMsg && (
+                                    <div style={{ ...s.msg, marginTop: 10, color: pwMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>
+                                        {pwMsg}
+                                    </div>
+                                )}
+                            </form>
+                        </div>
+
                     </div>
                 )}
 
@@ -295,68 +413,100 @@ export default function AffiliateDashboard() {
     );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Reusable transaction table ─────────────────────────────────────────────────
+function TxTable({ rows, showType }) {
+    if (!rows || rows.length === 0) return <div style={s.empty}>No transactions yet.</div>;
+    const cols = showType ? '2fr 1fr 1fr 1fr' : '2fr 1fr 1fr';
+    return (
+        <div style={s.tableWrap}>
+            <div style={{ ...s.tableRow, ...s.tableHead, gridTemplateColumns: cols }}>
+                <span>Description</span>
+                {showType && <span>Type</span>}
+                <span>Amount</span>
+                <span>Date</span>
+            </div>
+            {rows.map((tx, i) => (
+                <div key={i} style={{ ...s.tableRow, gridTemplateColumns: cols }}>
+                    <span style={{ color: '#c4cad8' }}>{tx.description}</span>
+                    {showType && <span style={{ color: '#a89cf7', fontSize: 11 }}>{tx.type}</span>}
+                    <span style={{ color: parseFloat(tx.amount) >= 0 ? '#6ee7b7' : '#f09595', fontWeight: 600 }}>
+                        {parseFloat(tx.amount) >= 0 ? '+' : ''}KES {Math.abs(parseFloat(tx.amount)).toFixed(2)}
+                    </span>
+                    <span style={{ color: '#5a6480' }}>{new Date(tx.created_at).toLocaleDateString()}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const s = {
-    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' },
-    loadingBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' },
-    spinner: { width: 32, height: 32, border: '3px solid #2d3348', borderTop: '3px solid #7c6ef7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+    page: { background: '#0f1117', minHeight: '100vh', fontFamily: 'sans-serif', color: '#e2e8f0', width: '100%', overflowX: 'hidden' },
+    center: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' },
 
-    nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    nav: { background: '#161b27', borderBottom: '0.5px solid #2d3348', padding: '0 24px', height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     navLogo: { color: '#7c6ef7', fontWeight: 600, fontSize: 18 },
-    navRight: { display: 'flex', alignItems: 'center', gap: 14 },
+    navRight: { display: 'flex', alignItems: 'center', gap: 12 },
     navName: { color: '#e2e8f0', fontSize: 13 },
-    navRole: { background: '#1e1a3a', color: '#a89cf7', fontSize: 11, padding: '3px 8px', borderRadius: 20, border: '0.5px solid #7c6ef7' },
-    logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#5a6480', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 },
+    navBadge: { background: '#1e1a3a', color: '#a89cf7', fontSize: 11, padding: '3px 8px', borderRadius: 20, border: '0.5px solid #7c6ef7' },
+    logoutBtn: { background: 'transparent', border: '0.5px solid #2d3348', color: '#8892a4', padding: '6px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
 
-    container: { maxWidth: 900, margin: '0 auto', padding: '28px 20px' },
+    navAvatar: { width: 34, height: 34, borderRadius: '50%', background: '#1e1a3a', border: '2px solid #7c6ef7', overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    navAvatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+    navAvatarInitial: { color: '#a89cf7', fontWeight: 700, fontSize: 14 },
 
-    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 },
+    container: { maxWidth: 920, margin: '0 auto', padding: '24px 20px' },
+
+    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 },
     statCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '16px 18px' },
     statLabel: { color: '#5a6480', fontSize: 11, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
-    statValue: { color: '#e2e8f0', fontSize: 22, fontWeight: 600 },
+    statValue: { fontSize: 22, fontWeight: 600 },
 
-    refCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '20px 24px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 },
+    refCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '20px 24px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 },
     refLeft: { flex: 1 },
     refTitle: { color: '#8892a4', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-    refCode: { color: '#7c6ef7', fontSize: 26, fontWeight: 700, letterSpacing: 4, marginBottom: 10, fontFamily: 'monospace' },
+    refCode: { color: '#7c6ef7', fontSize: 24, fontWeight: 700, letterSpacing: 4, marginBottom: 10, fontFamily: 'monospace' },
     refDesc: { color: '#5a6480', fontSize: 13, lineHeight: 1.6 },
     refBtns: { display: 'flex', flexDirection: 'column', gap: 8 },
     copyBtn: { background: '#1a1f2e', border: '0.5px solid #2d3348', color: '#e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' },
 
-    tabRow: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '0.5px solid #2d3348', paddingBottom: 0 },
-    tab: { background: 'transparent', border: 'none', color: '#5a6480', padding: '10px 16px', cursor: 'pointer', fontSize: 13, borderBottom: '2px solid transparent', marginBottom: -1 },
-    tabActive: { color: '#a89cf7', borderBottom: '2px solid #7c6ef7' },
-    tabContent: {},
+    tabBar: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '0.5px solid #2d3348', flexWrap: 'wrap' },
+    tab: { background: 'transparent', border: 'none', color: '#5a6480', padding: '12px 14px', cursor: 'pointer', fontSize: 13, borderBottom: '2px solid transparent', marginBottom: -1 },
+    tabActive: { color: '#e2e8f0', borderBottom: '2px solid #7c6ef7' },
 
-    section: { marginBottom: 28 },
-    sectionTitle: { color: '#8892a4', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
-
-    withdrawCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '20px 24px' },
-    withdrawNote: { color: '#8892a4', fontSize: 13, marginBottom: 16 },
-    withdrawInput: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '9px 12px', color: '#e2e8f0', fontSize: 14, width: 180 },
-    withdrawBtn: { background: '#7c6ef7', border: 'none', color: '#fff', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 500 },
-    withdrawMsg: { marginTop: 12, fontSize: 13 },
-
-    table: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, overflow: 'hidden' },
-    tableHead: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '10px 16px', background: '#1a1f2e', color: '#5a6480', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 },
-    tableRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '12px 16px', borderTop: '0.5px solid #1a1f2e', alignItems: 'center', fontSize: 13 },
-
+    section: { marginBottom: 24 },
+    sectionTitle: { color: '#8892a4', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
+    card: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '20px', marginBottom: 16 },
+    note: { color: '#8892a4', fontSize: 13, marginBottom: 14 },
+    msg: { fontSize: 13 },
     empty: { color: '#5a6480', fontSize: 13, padding: '24px 0', textAlign: 'center' },
 
-    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 },
-    productCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: 16 },
-    productImg: { width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, marginBottom: 10 },
+    smallInput: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '9px 12px', color: '#e2e8f0', fontSize: 14, width: 160 },
+    input: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box', outline: 'none', display: 'block' },
+    label: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6 },
+    primaryBtn: { background: '#7c6ef7', border: 'none', color: '#fff', padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+
+    tableWrap: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, overflow: 'hidden' },
+    tableHead: { background: '#1a1f2e', color: '#5a6480', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 },
+    tableRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '12px 16px', borderTop: '0.5px solid #1a1f2e', alignItems: 'center', fontSize: 13 },
+
+    profileHeader: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
+    bigAvatar: { width: 70, height: 70, borderRadius: '50%', background: '#2d3a5c', border: '3px solid #7c6ef7', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    bigAvatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+    bigAvatarInitial: { color: '#7c9ef7', fontWeight: 700, fontSize: 28 },
+
+    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 },
+    productCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: 14 },
+    productImg: { width: '100%', height: 110, objectFit: 'cover', borderRadius: 6, marginBottom: 10 },
     productName: { color: '#e2e8f0', fontSize: 13, fontWeight: 500, marginBottom: 4 },
     productPrice: { color: '#8892a4', fontSize: 12, marginBottom: 4 },
-    productCommission: { color: '#8892a4', fontSize: 12, marginBottom: 12 },
+    productCut: { color: '#8892a4', fontSize: 12, marginBottom: 12 },
     shareBtn: { width: '100%', background: '#1a1f2e', border: '0.5px solid #2d3348', color: '#a89cf7', padding: '7px 0', borderRadius: 6, cursor: 'pointer', fontSize: 12 },
 
-    roleBadge: (role) => ({
+    badge: (role) => ({
         display: 'inline-block',
         background: role === 'affiliate' ? '#1e1a3a' : role === 'seller' ? '#0a2318' : '#1a1f2e',
         color: role === 'affiliate' ? '#a89cf7' : role === 'seller' ? '#6ee7b7' : '#8892a4',
-        fontSize: 11,
-        padding: '2px 8px',
-        borderRadius: 20,
+        fontSize: 11, padding: '2px 8px', borderRadius: 20,
     }),
 };
