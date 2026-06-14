@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import API from '../api/axios';
 
 export default function ProductDetail() {
@@ -11,12 +11,15 @@ export default function ProductDetail() {
     const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
     const [message, setMessage] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+
+    const ref = searchParams.get('ref') || localStorage.getItem('pending_ref') || '';
 
     // Save ?ref= code to localStorage when landing on this page via promo link
     useEffect(() => {
-        const ref = searchParams.get('ref');
-        if (ref) {
-            localStorage.setItem('pending_ref', ref);
+        const refParam = searchParams.get('ref');
+        if (refParam) {
+            localStorage.setItem('pending_ref', refParam);
         }
     }, [searchParams]);
 
@@ -39,47 +42,48 @@ export default function ProductDetail() {
         } catch (err) { console.error(err); }
     };
 
+    const isLoggedIn = () => {
+        const token = localStorage.getItem('token');
+        if (!token) return false;
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.exp * 1000 > Date.now();
+        } catch { return false; }
+    };
+
     const handleAddToCart = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        localStorage.setItem('pending_product', id);
-        const urlParams = new URLSearchParams(window.location.search);
-        const ref = urlParams.get('ref');
-        if (ref) localStorage.setItem('pending_ref', ref);
-        navigate('/login?redirect=/product/' + id);
-        return;
-    }
-    try {
-        await API.post('/api/cart/add', { product_id: id });
-        setMessage('✅ Added to cart!');
-    } catch (err) {
-        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-    }
-};
+        if (!isLoggedIn()) {
+            localStorage.setItem('pending_product', id);
+            setShowAuthModal(true);
+            return;
+        }
+        try {
+            await API.post('/api/cart/add', { product_id: id });
+            setMessage('✅ Added to cart!');
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
 
     const handleBuy = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        // Save product and ref to localStorage then redirect to login
-        localStorage.setItem('pending_product', id);
-        const urlParams = new URLSearchParams(window.location.search);
-        const ref = urlParams.get('ref');
-        if (ref) localStorage.setItem('pending_ref', ref);
-        navigate('/login?redirect=/product/' + id);
-        return;
-    }
-    try {
-        const res = await API.post('/api/transactions/buy', { product_id: id });
-        setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
-        localStorage.removeItem('pending_product');
-        fetchProduct();
-    } catch (err) {
-        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-    }
-};
+        if (!isLoggedIn()) {
+            localStorage.setItem('pending_product', id);
+            setShowAuthModal(true);
+            return;
+        }
+        try {
+            const res = await API.post('/api/transactions/buy', { product_id: id, quantity });
+            setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
+            localStorage.removeItem('pending_product');
+            fetchProduct();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
 
     const handleReview = async (e) => {
         e.preventDefault();
+        if (!isLoggedIn()) { setShowAuthModal(true); return; }
         try {
             await API.post('/api/reviews/add', { ...reviewForm, product_id: id });
             setMessage('✅ Review submitted!');
@@ -94,6 +98,8 @@ export default function ProductDetail() {
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
         : null;
 
+    const redirectUrl = `/product/${id}${ref ? `?ref=${ref}` : ''}`;
+
     if (!product) return (
         <div style={{ background: '#0f1117', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ color: '#5a6480' }}>Loading...</div>
@@ -102,6 +108,30 @@ export default function ProductDetail() {
 
     return (
         <div style={s.page}>
+            {/* Auth Modal */}
+            {showAuthModal && (
+                <div style={s.modalOverlay} onClick={() => setShowAuthModal(false)}>
+                    <div style={s.modal} onClick={e => e.stopPropagation()}>
+                        <div style={s.modalIcon}>🛍</div>
+                        <div style={s.modalTitle}>Login to continue</div>
+                        <div style={s.modalSub}>You need an account to buy products on EasyBuy.</div>
+                        <div style={s.modalBtns}>
+                            <Link
+                                to={`/login?redirect=${encodeURIComponent(redirectUrl)}`}
+                                style={s.modalBtnPrimary}>
+                                Log in
+                            </Link>
+                            <Link
+                                to={`/register?redirect=${encodeURIComponent(redirectUrl)}${ref ? `&ref=${ref}` : ''}`}
+                                style={s.modalBtnOutline}>
+                                Create account
+                            </Link>
+                        </div>
+                        <button style={s.modalClose} onClick={() => setShowAuthModal(false)}>✕</button>
+                    </div>
+                </div>
+            )}
+
             <div style={s.nav}>
                 <button style={s.backBtn} onClick={() => navigate(-1)}>← Back</button>
                 <div style={s.logo}>🛍 EasyBuy</div>
@@ -142,7 +172,6 @@ export default function ProductDetail() {
                             </div>
                         )}
 
-                        {/* Quantity selector */}
                         {product.stock > 0 && (
                             <div style={s.qtyRow}>
                                 <span style={s.qtyLabel}>Quantity:</span>
@@ -161,6 +190,12 @@ export default function ProductDetail() {
                                 Buy Now
                             </button>
                         </div>
+
+                        {!isLoggedIn() && (
+                            <div style={s.guestNotice}>
+                                🔒 <Link to={`/login?redirect=${encodeURIComponent(redirectUrl)}`} style={{color:'#a89cf7'}}>Log in</Link> or <Link to={`/register?redirect=${encodeURIComponent(redirectUrl)}${ref ? `&ref=${ref}` : ''}`} style={{color:'#a89cf7'}}>Register</Link> to purchase this product
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -240,6 +275,16 @@ const s = {
     cartBtn: { flex: 1, background: '#1e2535', border: '0.5px solid #2d3348', color: '#e2e8f0', padding: '12px', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 },
     buyBtn: { flex: 1, background: '#7c6ef7', border: 'none', color: '#fff', padding: '12px', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 },
     disabled: { background: '#2d3348', color: '#5a6480', cursor: 'not-allowed' },
+    guestNotice: { background: '#1e1a3a', border: '0.5px solid #3d3580', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8892a4' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
+    modal: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 16, padding: '32px 28px', maxWidth: 380, width: '100%', textAlign: 'center', position: 'relative' },
+    modalIcon: { fontSize: 48, marginBottom: 16 },
+    modalTitle: { fontSize: 20, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 },
+    modalSub: { fontSize: 14, color: '#5a6480', marginBottom: 24, lineHeight: 1.6 },
+    modalBtns: { display: 'flex', flexDirection: 'column', gap: 10 },
+    modalBtnPrimary: { background: '#7c6ef7', color: '#fff', padding: '12px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'block' },
+    modalBtnOutline: { background: 'transparent', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '12px', borderRadius: 8, fontSize: 15, textDecoration: 'none', display: 'block' },
+    modalClose: { position: 'absolute', top: 12, right: 12, background: 'transparent', border: 'none', color: '#5a6480', fontSize: 18, cursor: 'pointer' },
     reviewsSection: { marginTop: 16 },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
     reviewsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 },
