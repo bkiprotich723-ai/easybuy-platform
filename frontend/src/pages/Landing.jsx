@@ -13,7 +13,7 @@ export default function Landing() {
             </div>
 
             <div style={s.hero}>
-                <img src={logo} alt="EasyBuy" style={{height: 80, objectFit: 'contain', marginBottom: 20}} />
+                <img src={logo} alt="EasyBuy" style={{height: 120, objectFit: 'contain', marginBottom: 24, display:'block', margin:'0 auto 24px'}} />
                 <div style={s.heroBadge}>🇰🇪 Kenya's fastest growing marketplace</div>
                 <h1 style={s.heroTitle}>Buy, sell & earn —<br />all in <span style={s.accent}>one place</span></h1>
                 <p style={s.heroSub}>Shop from thousands of products, launch your store, or earn commissions by referring friends. EasyBuy works for everyone.</p>
