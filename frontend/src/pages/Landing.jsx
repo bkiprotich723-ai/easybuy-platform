@@ -1,10 +1,11 @@
+import logo from '../assets/logo.png';
 import { Link } from 'react-router-dom';
 
 export default function Landing() {
     return (
         <div style={s.page}>
             <div style={s.nav}>
-                <div style={s.logo}>🛍 EasyBuy</div>
+                <img src={logo} alt="EasyBuy" style={{height: 36, objectFit: 'contain'}} />
                 <div style={s.navRight}>
                     <Link to="/login" style={s.ghostBtn}>Log in</Link>
                     <Link to="/register" style={s.primaryBtn}>Get started</Link>
@@ -12,6 +13,7 @@ export default function Landing() {
             </div>
 
             <div style={s.hero}>
+                <img src={logo} alt="EasyBuy" style={{height: 80, objectFit: 'contain', marginBottom: 20}} />
                 <div style={s.heroBadge}>🇰🇪 Kenya's fastest growing marketplace</div>
                 <h1 style={s.heroTitle}>Buy, sell & earn —<br />all in <span style={s.accent}>one place</span></h1>
                 <p style={s.heroSub}>Shop from thousands of products, launch your store, or earn commissions by referring friends. EasyBuy works for everyone.</p>
@@ -110,7 +112,7 @@ export default function Landing() {
 
             <div style={s.footerTop}>
     <div style={s.footerBrand}>
-        <div style={s.footerLogo}>🛍 EasyBuy</div>
+        <img src={logo} alt="EasyBuy" style={{height: 28, objectFit: 'contain'}} />
         <div style={s.footerTagline}>Kenya's fastest growing marketplace</div>
         <div style={s.footerContact}>
             <div style={s.contactLine}>📞 +254 700 000 000</div>
