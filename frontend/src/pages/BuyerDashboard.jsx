@@ -83,16 +83,9 @@ useEffect(() => {
         }
     };
 
-    const handleBuy = async (product_id) => {
-        try {
-            const res = await API.post('/api/transactions/buy', { product_id });
-            setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
-            fetchWallet();
-            fetchOrders();
-            fetchProducts();
-        } catch (err) {
-            setMessage('❌ ' + (err.response?.data?.message || 'Purchase failed'));
-        }
+    const handleBuy = (product_id) => {
+        // Navigate to product detail page — it handles auth, quantity, and purchase
+        navigate(`/product/${product_id}`);
     };
 
     const handleTicket = async (e) => {
@@ -373,7 +366,7 @@ const s = {
     categoryPill: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 20, padding: '6px 14px', fontSize: 12, color: '#8892a4', cursor: 'pointer', whiteSpace: 'nowrap' },
     categoryActive: { background: '#1e1a3a', border: '0.5px solid #7c6ef7', color: '#a89cf7' },
     sectionLabel: { fontSize: 11, color: '#5a6480', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, marginTop: 8 },
-    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
+    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 },
     productCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, overflow: 'hidden' },
     productImg: { background: '#1a1f35', height: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 },
     productInfo: { padding: '10px 12px' },
