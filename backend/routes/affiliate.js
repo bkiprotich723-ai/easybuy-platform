@@ -75,4 +75,10 @@ router.get("/dashboard", async (req, res) => {
     }
 });
 
+if (!user.is_active) {
+    return res.status(403).json({
+        message: "Activate your affiliate account with KES 100 to access your referral link."
+    });
+}
+
 module.exports = router;

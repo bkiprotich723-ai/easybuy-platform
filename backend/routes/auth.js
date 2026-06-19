@@ -16,31 +16,10 @@ function generateReferralCode() {
     return code;
 }
 
-// ─── Helper: credit referrer KES 30 when referred user registers ──────────────
-async function creditReferrer(referralCode, newUserName) {
-    if (!referralCode) return;
-    const referrerResult = await db.query(
-        "SELECT id FROM users WHERE referral_code = $1", [referralCode]
-    );
-    if (referrerResult.rows.length === 0) return;
-
-    const referrerId = referrerResult.rows[0].id;
-    const commission = 30;
-
-    await db.query(
-        "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
-        [commission, referrerId]
-    );
-    await db.query(
-        `INSERT INTO wallet_transactions (user_id, type, amount, description)
-         VALUES ($1, 'referral_commission', $2, $3)`,
-        [referrerId, commission, `Referral commission — ${newUserName} registered`]
-    );
-}
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post("/register", async (req, res) => {
-    const { name, email, password, role, referral_code, payment_confirmed } = req.body;
+    const { name, email, password, role, referral_code } = req.body;
 
     const userRole = role || "buyer";
     const PAID_ROLES = ["affiliate", "seller"];
@@ -78,7 +57,7 @@ router.post("/register", async (req, res) => {
         }
 
         const userResult = await db.query(
-            `INSERT INTO users (name, email, password, role, referral_code, referred_by)
+            `INSERT INTO users (name, email, password, role, referral_code,is_active ,activation_fee_paid , referred_by)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
             [name, email, hashedPassword, userRole, newReferralCode, referral_code || null]
         );
@@ -86,11 +65,7 @@ router.post("/register", async (req, res) => {
 
         await db.query("INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [userId]);
 
-        // Credit referrer KES 30 immediately for paid role registrations
-        if (referral_code && PAID_ROLES.includes(userRole)) {
-            await creditReferrer(referral_code, name);
-        }
-
+        
         res.json({ message: "User registered successfully", userId, referral_code: newReferralCode });
 
     } catch (err) {
@@ -128,6 +103,80 @@ router.post("/login", async (req, res) => {
         const token = jwt.sign({ id: user.id, role: user.role }, SECRET, { expiresIn: "1d" });
         const { password: _, ...safeUser } = user;
         res.json({ message: "Login successful", token, user: safeUser });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+router.post("/activate", async (req, res) => {
+    const { userId } = req.body;
+
+    try {
+        const userResult = await db.query(
+            "SELECT * FROM users WHERE id = $1",
+            [userId]
+        );
+
+        const user = userResult.rows[0];
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        await db.query(
+            `UPDATE users
+             SET is_active = true,
+                 activation_fee_paid = true
+             WHERE id = $1`,
+            [userId]
+        );
+
+        if (user.referred_by) {
+
+            const referrer = await db.query(
+                "SELECT id FROM users WHERE referral_code = $1",
+                [user.referred_by]
+            );
+
+            if (referrer.rows.length > 0) {
+
+                const bonus =
+                    user.role === "seller"
+                        ? 150
+                        : user.role === "affiliate"
+                        ? 30
+                        : 0;
+
+                if (bonus > 0) {
+
+                    const referrerId = referrer.rows[0].id;
+
+                    await db.query(
+                        `UPDATE wallets
+                         SET balance = balance + $1
+                         WHERE user_id = $2`,
+                        [bonus, referrerId]
+                    );
+
+                    await db.query(
+                        `INSERT INTO wallet_transactions
+                         (user_id, type, amount, description)
+                         VALUES ($1, 'referral_commission', $2, $3)`,
+                        [
+                            referrerId,
+                            bonus,
+                            `${user.name} activated a ${user.role} account`
+                        ]
+                    );
+                }
+            }
+        }
+
+        res.json({
+            message: "Account activated successfully"
+        });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
