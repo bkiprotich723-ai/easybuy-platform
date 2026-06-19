@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-
+const authMiddleware = require("../middleware/authMiddleware");
 // GET /api/affiliate/dashboard
 router.get("/dashboard", async (req, res) => {
     const userId = req.user.id;
