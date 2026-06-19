@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const authMiddleware = require("../middleware/authMiddleware");
+const { verifyToken } = require("../middleware/authMiddleware");
 // GET /api/affiliate/dashboard
 router.get("/dashboard", async (req, res) => {
     const userId = req.user.id;
@@ -74,8 +74,7 @@ router.get("/dashboard", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-router.get("/referral-link", authMiddleware, async (req, res) => {
+router.get("/referral-link", verifyToken, async (req, res) => {
 
     const result = await db.query(
         "SELECT * FROM users WHERE id = $1",
