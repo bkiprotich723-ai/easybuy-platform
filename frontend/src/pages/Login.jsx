@@ -8,6 +8,8 @@ export default function Login() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: '', password: '' });
     const [searchParams] = useSearchParams();
+    // ?redirect= is the full path we want to send the user to after login
+    // e.g. /product/42?ref=aB3@kZ9!
     const redirect = searchParams.get('redirect');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -20,10 +22,15 @@ export default function Login() {
             const res = await API.post('/api/auth/login', form);
             login(res.data.token);
 
-            const role = res.data.user.role;
+            // If there's a redirect target (e.g. a promo product page), go there first.
+            // This keeps the ?ref= in the URL so ProductDetail can re-read it after login.
             if (redirect) {
                 navigate(redirect);
-            } else if (role === 'admin') navigate('/admin');
+                return;
+            }
+
+            const role = res.data.user.role;
+            if (role === 'admin') navigate('/admin');
             else if (role === 'seller') navigate('/seller');
             else if (role === 'affiliate') navigate('/affiliate');
             else navigate('/buyer');
@@ -42,9 +49,9 @@ export default function Login() {
                 <h3 style={styles.title}>Welcome back</h3>
                 <p style={styles.sub}>{redirect ? '🔒 Log in to complete your purchase' : 'Log in to your account'}</p>
                 {redirect && (
-                   <div style={styles.redirectNotice}>
-                      After logging in you'll be taken back to complete your purchase.
-                   </div>
+                    <div style={styles.redirectNotice}>
+                        After logging in you'll be taken back to complete your purchase.
+                    </div>
                 )}
 
                 {error && <div style={styles.error}>{error}</div>}
@@ -56,7 +63,7 @@ export default function Login() {
                         type="email"
                         placeholder="you@email.com"
                         value={form.email}
-                        onChange={e => setForm({...form, email: e.target.value})}
+                        onChange={e => setForm({ ...form, email: e.target.value })}
                         required
                     />
                     <label style={styles.label}>Password</label>
@@ -65,7 +72,7 @@ export default function Login() {
                         type="password"
                         placeholder="••••••••"
                         value={form.password}
-                        onChange={e => setForm({...form, password: e.target.value})}
+                        onChange={e => setForm({ ...form, password: e.target.value })}
                         required
                     />
                     <button style={styles.btn} type="submit" disabled={loading}>
@@ -73,7 +80,15 @@ export default function Login() {
                     </button>
                 </form>
                 <p style={styles.footer}>
-                    No account? <Link to="/register" style={styles.link}>Register</Link>
+                    No account?{' '}
+                    <Link
+                        to={redirect
+                            ? `/register?redirect=${encodeURIComponent(redirect)}`
+                            : '/register'
+                        }
+                        style={styles.link}>
+                        Register
+                    </Link>
                 </p>
             </div>
         </div>
@@ -92,5 +107,5 @@ const styles = {
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 16 },
     footer: { color: '#5a6480', fontSize: 13, textAlign: 'center', marginTop: 18 },
     redirectNotice: { background: '#1e1a3a', border: '0.5px solid #3d3580', color: '#a89cf7', borderRadius: 8, padding: '10px 12px', fontSize: 13, marginBottom: 16 },
-    link: { color: '#a89cf7', textDecoration: 'none' }
+    link: { color: '#a89cf7', textDecoration: 'none' },
 };

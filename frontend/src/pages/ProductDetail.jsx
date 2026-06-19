@@ -13,15 +13,16 @@ export default function ProductDetail() {
     const [quantity, setQuantity] = useState(1);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
-    const ref = searchParams.get('ref') || localStorage.getItem('pending_ref') || '';
+    // ── Affiliate ref: URL param takes priority, fallback to localStorage ──
+    const refParam = searchParams.get('ref');
+    const ref = refParam || localStorage.getItem('pending_ref') || '';
 
-    // Save ?ref= code to localStorage when landing on this page via promo link
+    // Persist ref to localStorage as soon as the page loads via a promo link
     useEffect(() => {
-        const refParam = searchParams.get('ref');
         if (refParam) {
             localStorage.setItem('pending_ref', refParam);
         }
-    }, [searchParams]);
+    }, [refParam]);
 
     useEffect(() => {
         fetchProduct();
@@ -51,9 +52,12 @@ export default function ProductDetail() {
         } catch { return false; }
     };
 
+    // The URL we want the user to land on after login/register
+    // Always carry the ref so the product page re-reads it from the URL
+    const redirectUrl = `/product/${id}${ref ? `?ref=${ref}` : ''}`;
+
     const handleAddToCart = async () => {
         if (!isLoggedIn()) {
-            localStorage.setItem('pending_product', id);
             setShowAuthModal(true);
             return;
         }
@@ -67,14 +71,20 @@ export default function ProductDetail() {
 
     const handleBuy = async () => {
         if (!isLoggedIn()) {
-            localStorage.setItem('pending_product', id);
             setShowAuthModal(true);
             return;
         }
         try {
-            const res = await API.post('/api/transactions/buy', { product_id: id, quantity });
+            // Always send ref_code so the backend can credit the affiliate
+            // even when the buyer has no referred_by set on their account yet
+            const res = await API.post('/api/transactions/buy', {
+                product_id: id,
+                quantity,
+                ref_code: ref || undefined,
+            });
             setMessage(`✅ Purchase successful! Order #${res.data.order_id}`);
-            localStorage.removeItem('pending_product');
+            // Clear the stored ref after a successful purchase
+            localStorage.removeItem('pending_ref');
             fetchProduct();
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
@@ -97,8 +107,6 @@ export default function ProductDetail() {
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
         : null;
-
-    const redirectUrl = `/product/${id}${ref ? `?ref=${ref}` : ''}`;
 
     if (!product) return (
         <div style={{ background: '#0f1117', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -193,7 +201,14 @@ export default function ProductDetail() {
 
                         {!isLoggedIn() && (
                             <div style={s.guestNotice}>
-                                🔒 <Link to={`/login?redirect=${encodeURIComponent(redirectUrl)}`} style={{color:'#a89cf7'}}>Log in</Link> or <Link to={`/register?redirect=${encodeURIComponent(redirectUrl)}${ref ? `&ref=${ref}` : ''}`} style={{color:'#a89cf7'}}>Register</Link> to purchase this product
+                                🔒 <Link to={`/login?redirect=${encodeURIComponent(redirectUrl)}`} style={{ color: '#a89cf7' }}>Log in</Link> or <Link to={`/register?redirect=${encodeURIComponent(redirectUrl)}${ref ? `&ref=${ref}` : ''}`} style={{ color: '#a89cf7' }}>Register</Link> to purchase this product
+                            </div>
+                        )}
+
+                        {/* Show affiliate badge so the buyer knows a promo link is active */}
+                        {ref && (
+                            <div style={s.refBadge}>
+                                🔗 Affiliate promo link active
                             </div>
                         )}
                     </div>
@@ -276,6 +291,7 @@ const s = {
     buyBtn: { flex: 1, background: '#7c6ef7', border: 'none', color: '#fff', padding: '12px', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 },
     disabled: { background: '#2d3348', color: '#5a6480', cursor: 'not-allowed' },
     guestNotice: { background: '#1e1a3a', border: '0.5px solid #3d3580', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8892a4' },
+    refBadge: { background: '#1a2a1a', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '8px 12px', fontSize: 12 },
     modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
     modal: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 16, padding: '32px 28px', maxWidth: 380, width: '100%', textAlign: 'center', position: 'relative' },
     modalIcon: { fontSize: 48, marginBottom: 16 },
