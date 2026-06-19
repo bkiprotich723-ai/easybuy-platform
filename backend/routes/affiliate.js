@@ -75,10 +75,24 @@ router.get("/dashboard", async (req, res) => {
     }
 });
 
-if (!user.is_active) {
-    return res.status(403).json({
-        message: "Activate your affiliate account with KES 100 to access your referral link."
+router.get("/referral-link", authMiddleware, async (req, res) => {
+
+    const result = await db.query(
+        "SELECT * FROM users WHERE id = $1",
+        [req.user.id]
+    );
+
+    const user = result.rows[0];
+
+    if (!user.is_active) {
+        return res.status(403).json({
+            message: "Activate your affiliate account first"
+        });
+    }
+
+    res.json({
+        referralCode: user.referral_code
     });
-}
+});
 
 module.exports = router;
