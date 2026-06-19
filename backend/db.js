@@ -18,6 +18,11 @@ async function initDB() {
                 referral_code TEXT,
                 referred_by TEXT,
                 profile_picture TEXT,
+                mpesa_number TEXT,
+                is_verified BOOLEAN DEFAULT false,
+                verification_code TEXT,
+                verification_expires TIMESTAMP,
+                status TEXT DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS products (
@@ -37,6 +42,7 @@ async function initDB() {
                 buyer_id INTEGER,
                 product_id INTEGER,
                 amount NUMERIC,
+                status TEXT DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS wallets (
@@ -71,6 +77,11 @@ async function initDB() {
         // Safe migrations for existing databases
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code TEXT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expires TIMESTAMP;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
         `);
 
         console.log("✅ Database tables ready (PostgreSQL)");

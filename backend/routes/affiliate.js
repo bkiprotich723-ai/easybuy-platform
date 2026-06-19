@@ -1,67 +1,53 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const { verifyToken } = require("../middleware/authMiddleware");
-// GET /api/affiliate/dashboard
+const bcrypt = require("bcrypt");
+
+// ─── GET /api/affiliate/dashboard ────────────────────────────────────────────
 router.get("/dashboard", async (req, res) => {
     const userId = req.user.id;
-
     try {
-        // User info
         const userResult = await db.query(
-            "SELECT id, name, email, role, referral_code FROM users WHERE id = $1",
+            "SELECT id, name, email, role, referral_code, profile_picture FROM users WHERE id = $1",
             [userId]
         );
         const user = userResult.rows[0];
-
         if (!user || user.role !== "affiliate") {
             return res.status(403).json({ message: "Access denied. Affiliates only." });
         }
 
-        // Wallet balance
         const walletResult = await db.query(
-            "SELECT balance FROM wallets WHERE user_id = $1",
-            [userId]
+            "SELECT balance FROM wallets WHERE user_id = $1", [userId]
         );
         const wallet_balance = walletResult.rows[0]?.balance || 0;
 
-        // People they referred (joined via their referral code)
         const referralsResult = await db.query(
-            `SELECT name, role, created_at
-             FROM users
-             WHERE referred_by = $1
-             ORDER BY created_at DESC`,
+            `SELECT name, role, created_at FROM users
+             WHERE referred_by = $1 ORDER BY created_at DESC`,
             [user.referral_code]
         );
 
-        // Commission transaction history
         const transactionsResult = await db.query(
-            `SELECT type, amount, description, created_at
-             FROM wallet_transactions
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
+            `SELECT type, amount, description, created_at FROM wallet_transactions
+             WHERE user_id = $1 ORDER BY created_at DESC`,
             [userId]
         );
 
-        // Total earned (sum of all credits)
         const totalResult = await db.query(
-            `SELECT COALESCE(SUM(amount), 0) AS total
-             FROM wallet_transactions
-             WHERE user_id = $1`,
+            `SELECT COALESCE(SUM(amount), 0) AS total FROM wallet_transactions
+             WHERE user_id = $1 AND amount > 0`,
             [userId]
         );
 
-        // All products to promote
         const productsResult = await db.query(
-            `SELECT id, name, price, image
-             FROM products
-             ORDER BY created_at DESC`
+            `SELECT id, name, price, image FROM products ORDER BY created_at DESC`
         );
 
         res.json({
             name: user.name,
             email: user.email,
             referral_code: user.referral_code,
+            profile_picture: user.profile_picture || null,
             wallet_balance,
             total_earned: totalResult.rows[0].total,
             referrals: referralsResult.rows,
@@ -74,24 +60,66 @@ router.get("/dashboard", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-router.get("/referral-link", verifyToken, async (req, res) => {
 
-    const result = await db.query(
-        "SELECT * FROM users WHERE id = $1",
-        [req.user.id]
-    );
+// ─── PUT /api/affiliate/profile ───────────────────────────────────────────────
+router.put("/profile", async (req, res) => {
+    const userId = req.user.id;
+    const { name, email, profile_picture } = req.body;
 
-    const user = result.rows[0];
-
-    if (!user.is_active) {
-        return res.status(403).json({
-            message: "Activate your affiliate account first"
-        });
+    if (!name || !email) {
+        return res.status(400).json({ message: "Name and email are required." });
     }
 
-    res.json({
-        referralCode: user.referral_code
-    });
+    try {
+        // Check email not taken by another user
+        const emailCheck = await db.query(
+            "SELECT id FROM users WHERE email = $1 AND id != $2", [email, userId]
+        );
+        if (emailCheck.rows.length > 0) {
+            return res.status(400).json({ message: "Email already in use by another account." });
+        }
+
+        await db.query(
+            `UPDATE users SET name = $1, email = $2, profile_picture = $3 WHERE id = $4`,
+            [name, email, profile_picture || null, userId]
+        );
+
+        res.json({ message: "Profile updated successfully." });
+    } catch (err) {
+        console.error("Profile update error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── PUT /api/affiliate/reset-password ───────────────────────────────────────
+router.put("/reset-password", async (req, res) => {
+    const userId = req.user.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+        return res.status(400).json({ message: "Both current and new password are required." });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters." });
+    }
+
+    try {
+        const result = await db.query("SELECT password FROM users WHERE id = $1", [userId]);
+        const user = result.rows[0];
+
+        const match = await bcrypt.compare(current_password, user.password);
+        if (!match) {
+            return res.status(400).json({ message: "Current password is incorrect." });
+        }
+
+        const hashed = await bcrypt.hash(new_password, 10);
+        await db.query("UPDATE users SET password = $1 WHERE id = $2", [hashed, userId]);
+
+        res.json({ message: "Password updated successfully." });
+    } catch (err) {
+        console.error("Reset password error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;
