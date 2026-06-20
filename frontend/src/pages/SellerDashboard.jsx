@@ -255,25 +255,28 @@ export default function SellerDashboard() {
     };
 
     const handleActivation = async (e) => {
-        e.preventDefault();
-        setActivationMsg('');
-        setActivating(true);
-        try {
-            if (mpesaNumber) {
-                await API.put('/api/profile/update', { name: profile?.name || '', profile_picture: profileForm.profile_picture, mpesa_number: mpesaNumber });
-            }
-            const res = await API.post('/api/transactions/deposit', { amount: depositAmount });
-            setActivationMsg('✅ Account activated! Welcome to EasyBuy Seller Hub.');
-            if (res.data.activated) {
-                setIsActive(true);
-                fetchAll();
-            }
-        } catch (err) {
-            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-        } finally {
-            setActivating(false);
+    e.preventDefault();
+    setActivationMsg('');
+    setActivating(true);
+    try {
+        if (mpesaNumber) {
+            await API.put('/api/profile/update', { name: profile?.name || '', profile_picture: profileForm.profile_picture, mpesa_number: mpesaNumber });
         }
-    };
+        await API.post('/api/transactions/deposit', { amount: depositAmount });
+        setActivationMsg('✅ Account activated! Welcome to EasyBuy Seller Hub.');
+
+        // Re-check activation status from the server (source of truth)
+        const profileRes = await API.get('/api/profile');
+        if (profileRes.data.is_active) {
+            setIsActive(true);
+            fetchAll();
+        }
+    } catch (err) {
+        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+    } finally {
+        setActivating(false);
+    }
+};
     const handleLogout = () => {
         if (window.confirm('Are you sure you want to log out?')) {
             logout();
