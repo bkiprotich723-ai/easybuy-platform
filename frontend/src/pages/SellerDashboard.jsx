@@ -352,7 +352,7 @@ export default function SellerDashboard() {
                             <b style={{color:'#f7c948'}}>KES 500</b>. Your account will be activated instantly after payment.
                         </div>
                         <form onSubmit={handleActivation} style={{maxWidth:340, margin:'0 auto', textAlign:'left'}}>
-                            <label style={s.label}>M-Pesa number <span style={{color:'#5a6480'}}>(for future withdrawals)</span></label>
+                            <label style={s.label}>M-Pesa number <span style={{color:'#5a6480'}}>(for deposits)</span></label>
                             <input style={s.input} type="tel" placeholder="e.g. 0712345678"
                                 value={mpesaNumber}
                                 onChange={e => setMpesaNumber(e.target.value)} />
