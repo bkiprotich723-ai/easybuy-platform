@@ -16,7 +16,7 @@ export default function Register() {
     const initialRef = refFromUrl || refFromStorage;
 
     const [form, setForm] = useState({
-        name: '', email: '', password: '', role: 'buyer',
+        name: '', email: '', password: '', confirm_password: '', role: 'buyer',
         referral_code: initialRef,
     });
     const [error, setError] = useState('');
@@ -29,10 +29,14 @@ export default function Register() {
     }, [searchParams]);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
+            e.preventDefault();
+            if (form.password !== form.confirm_password) {
+                setError('Passwords do not match');
+                return;
+            }
+            setLoading(true);
+            setError('');
+            try {
             const payload = { ...form };
             if (form.role === 'affiliate' || form.role === 'seller') {
                 payload.payment_confirmed = true;
@@ -110,8 +114,21 @@ export default function Register() {
 
                     <label style={styles.label}>Password</label>
                     <input style={styles.input} type="password" placeholder="••••••••" value={form.password}
-                        onChange={e => setForm({ ...form, password: e.target.value })} required />
+                       onChange={e => setForm({ ...form, password: e.target.value })} required />
 
+                    <label style={styles.label}>Confirm password</label>
+                    <input style={styles.input} type="password" placeholder="••••••••" value={form.confirm_password}
+                       onChange={e => setForm({ ...form, confirm_password: e.target.value })} required />
+                    {form.confirm_password && form.password !== form.confirm_password && (
+                       <div style={{color:'#f09595', fontSize:12, marginTop:-10, marginBottom:14}}>
+                         ❌ Passwords do not match
+                       </div>
+                    )}
+                    {form.confirm_password && form.password === form.confirm_password && (
+                       <div style={{color:'#5dd6a3', fontSize:12, marginTop:-10, marginBottom:14}}>
+                         ✅ Passwords match
+                       </div>
+                    )}
                     <label style={styles.label}>
                         Referral code <span style={{ color: '#5a6480' }}>(optional)</span>
                     </label>
