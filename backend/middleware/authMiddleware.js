@@ -28,10 +28,14 @@ const authorizeRoles = (...roles) => {
 };
 
 // BLOCK INACTIVE ACCOUNTS (seller/affiliate who haven't paid activation fee)
+// Only blocks when is_active is explicitly false — null/undefined passes through
+// so that routes without activation requirements are unaffected.
+// Do NOT apply this to dashboard routes — inactive users need dashboard access
+// to reach the activation/payment UI.
 const requireActive = (req, res, next) => {
-    if (req.user.is_active === false) {
+    if (req.user.is_active === false || req.user.is_active === 0) {
         return res.status(403).json({
-            message: "Account not activated",
+            message: "Account not activated. Please pay the activation fee to continue.",
             not_activated: true
         });
     }

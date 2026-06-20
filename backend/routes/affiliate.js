@@ -2,13 +2,17 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const bcrypt = require("bcrypt");
+const { verifyToken } = require("../middleware/authMiddleware");
 
 // ─── GET /api/affiliate/dashboard ────────────────────────────────────────────
-router.get("/dashboard", async (req, res) => {
+// verifyToken only — requireActive is intentionally excluded.
+// Inactive affiliates must reach the dashboard to pay the activation fee;
+// the activation wall is handled in the frontend, not as a hard API block.
+router.get("/dashboard", verifyToken, async (req, res) => {
     const userId = req.user.id;
     try {
         const userResult = await db.query(
-            "SELECT id, name, email, role, referral_code, profile_picture FROM users WHERE id = $1",
+            "SELECT id, name, email, role, referral_code, profile_picture, is_active FROM users WHERE id = $1",
             [userId]
         );
         const user = userResult.rows[0];
@@ -48,6 +52,7 @@ router.get("/dashboard", async (req, res) => {
             email: user.email,
             referral_code: user.referral_code,
             profile_picture: user.profile_picture || null,
+            is_active: user.is_active,   // ← frontend reads this to show/hide activation wall
             wallet_balance,
             total_earned: totalResult.rows[0].total,
             referrals: referralsResult.rows,
@@ -62,7 +67,7 @@ router.get("/dashboard", async (req, res) => {
 });
 
 // ─── PUT /api/affiliate/profile ───────────────────────────────────────────────
-router.put("/profile", async (req, res) => {
+router.put("/profile", verifyToken, async (req, res) => {
     const userId = req.user.id;
     const { name, email, profile_picture } = req.body;
 
@@ -92,7 +97,7 @@ router.put("/profile", async (req, res) => {
 });
 
 // ─── PUT /api/affiliate/reset-password ───────────────────────────────────────
-router.put("/reset-password", async (req, res) => {
+router.put("/reset-password", verifyToken, async (req, res) => {
     const userId = req.user.id;
     const { current_password, new_password } = req.body;
 
