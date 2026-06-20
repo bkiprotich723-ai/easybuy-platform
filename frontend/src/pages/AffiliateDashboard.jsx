@@ -30,11 +30,6 @@ export default function AffiliateDashboard() {
     const [withdrawMsg, setWithdrawMsg] = useState('');
     const [withdrawing, setWithdrawing] = useState(false);
 
-    // Activation state (affiliate pays KES 100 to activate their account)
-    const [depositAmount, setDepositAmount] = useState('');
-    const [activating, setActivating] = useState(false);
-    const [activationMsg, setActivationMsg] = useState('');
-
     useEffect(() => {
         fetchDashboard();
         // Poll wallet every 30 seconds to catch incoming commissions
@@ -134,30 +129,6 @@ export default function AffiliateDashboard() {
         }
     }
 
-    // ── Activation: deposit KES 100 to unlock affiliate account ─────────────
-    async function handleActivation(e) {
-        e.preventDefault();
-        const amt = parseFloat(depositAmount);
-        if (isNaN(amt) || amt < 100) {
-            setActivationMsg('❌ Please deposit at least KES 100 to activate your account.');
-            return;
-        }
-        setActivating(true);
-        setActivationMsg('');
-        try {
-            // Deposit into wallet — backend will detect activation threshold and
-            // credit the referrer's KES 150 bonus automatically on this endpoint.
-            await API.post('/api/transactions/deposit', { amount: amt });
-            setActivationMsg('✅ Account activated! Your referrer has been credited.');
-            setDepositAmount('');
-            fetchDashboard();
-        } catch (err) {
-            setActivationMsg('❌ ' + (err.response?.data?.message || 'Activation failed. Try again.'));
-        } finally {
-            setActivating(false);
-        }
-    }
-
     function copyText(text, label) {
         navigator.clipboard.writeText(text);
         setCopied(label);
@@ -189,8 +160,6 @@ export default function AffiliateDashboard() {
     const balance = parseFloat(data.wallet_balance || 0);
     const totalEarned = parseFloat(data.total_earned || 0);
     const referralLink = `${window.location.origin}/register?ref=${data.referral_code}`;
-    // is_active is set to true by the backend once the KES 100 deposit is confirmed
-    const isActive = !!data.is_active;
 
     return (
         <div style={s.page}>
@@ -212,33 +181,6 @@ export default function AffiliateDashboard() {
             </div>
 
             <div style={s.container}>
-                {!isActive && (
-                    <div style={s.activationWall}>
-                        <div style={s.activationIcon}>🔒</div>
-                        <div style={s.activationTitle}>Activate your seller account</div>
-                        <div style={s.activationSub}>
-                            Pay the one-time activation fee of <b style={{color:'#f7c948'}}>KES 100</b> to access your referral link and start earning.        
-                        </div>
-                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
-                            <label style={s.label}>Deposit amount (KES)</label>
-                            <input style={s.input} type="number" placeholder="100"
-                               value={depositAmount}
-                               onChange={e => setDepositAmount(e.target.value)} required />
-                            <button style={s.submitBtn} type="submit" disabled={activating}>
-                               {activating ? 'Processing...' : '💳 Pay KES 100 & Activate'}
-                            </button>
-                        </form>
-                        {activationMsg && (
-                            <div style={{ marginTop: 14, fontSize: 13, color: activationMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>
-                                {activationMsg}
-                            </div>
-                        )}
-                        <div style={{marginTop:16, fontSize:13, color:'#5a6480'}}>
-                            After activation your referrer will receive their KES 150 bonus automatically.
-                        </div>
-                    </div>
-                )}
-
 
                 {/* ── Stats row ── */}
                 <div style={s.statsRow}>
@@ -261,9 +203,8 @@ export default function AffiliateDashboard() {
                         <div style={s.refTitle}>Your referral code</div>
                         <div style={s.refCode}>{data.referral_code}</div>
                         <div style={s.refDesc}>
-                            Earn <b style={{ color: '#f7c948' }}>KES 150</b> when a referred seller activates (pays KES 500),{' '}
-                            <b style={{ color: '#6ee7b7' }}>KES 30</b> when a referred affiliate activates (pays KES 100),
-                            and <b style={{ color: '#a89cf7' }}>10%</b> of every purchase they make.
+                            Earn <b style={{ color: '#6ee7b7' }}>KES 30</b> instantly when someone registers as
+                            affiliate or seller, and <b style={{ color: '#a89cf7' }}>10%</b> of every purchase they make.
                         </div>
                     </div>
                     <div style={s.refBtns}>
@@ -551,11 +492,6 @@ const s = {
     input: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 14, boxSizing: 'border-box', outline: 'none', display: 'block' },
     label: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6 },
     primaryBtn: { background: '#7c6ef7', border: 'none', color: '#fff', padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-    submitBtn: { width: '100%', background: '#7c6ef7', border: 'none', color: '#fff', padding: '12px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 4 },
-    activationWall: { background: '#1a1520', border: '1px solid #4a3580', borderRadius: 14, padding: '32px 24px', marginBottom: 24, textAlign: 'center' },
-    activationIcon: { fontSize: 48, marginBottom: 12 },
-    activationTitle: { color: '#e2e8f0', fontSize: 18, fontWeight: 600, marginBottom: 8 },
-    activationSub: { color: '#8892a4', fontSize: 14, lineHeight: 1.7, marginBottom: 20 },
 
     tableWrap: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, overflow: 'hidden' },
     tableHead: { background: '#1a1f2e', color: '#5a6480', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 },
