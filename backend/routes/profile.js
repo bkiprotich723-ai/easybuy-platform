@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/", verifyToken, async (req, res) => {
     try {
         const result = await db.query(
-            "SELECT id, name, email, role, referral_code, profile_picture, mpesa_number, created_at FROM users WHERE id = $1",
+            "SELECT id, name, email, role, referral_code, profile_picture, mpesa_number, is_active, created_at FROM users WHERE id = $1",
             [req.user.id]
         );
         res.json(result.rows[0]);
