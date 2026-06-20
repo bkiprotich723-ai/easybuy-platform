@@ -181,6 +181,28 @@ export default function AffiliateDashboard() {
             </div>
 
             <div style={s.container}>
+                {!isActive && (
+                    <div style={s.activationWall}>
+                        <div style={s.activationIcon}>🔒</div>
+                        <div style={s.activationTitle}>Activate your seller account</div>
+                        <div style={s.activationSub}>
+                            Pay the one-time activation fee of <b style={{color:'#f7c948'}}>KES 100</b> to access your referral link and start earning.        
+                        </div>
+                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
+                            <label style={s.label}>Deposit amount (KES)</label>
+                            <input style={s.input} type="number" placeholder="100"
+                               value={depositAmount}
+                               onChange={e => setDepositAmount(e.target.value)} required />
+                            <button style={s.submitBtn} type="submit" disabled={activating}>
+                               {activating ? 'Processing...' : '💳 Pay KES 100 & Activate'}
+                            </button>
+                        </form>
+                        <div style={{marginTop:16, fontSize:13, color:'#5a6480'}}>
+                            After activation your referrer will receive their bonus automatically.
+                        </div>
+                    </div>
+                )}
+
 
                 {/* ── Stats row ── */}
                 <div style={s.statsRow}>

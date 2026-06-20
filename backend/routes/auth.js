@@ -84,10 +84,12 @@ router.post("/register", async (req, res) => {
 
         await db.query("INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [userId]);
 
-        // Credit referrer with correct bonus based on role
-        if (referral_code && PAID_ROLES.includes(userRole)) {
-            await creditReferrer(referral_code, name, userRole);
+        // Seller and affiliate start as inactive until they pay activation fee
+        if (PAID_ROLES.includes(userRole)) {
+            await db.query("UPDATE users SET is_active = false WHERE id = $1", [userId]);
         }
+
+        // DO NOT credit referrer here — only after activation payment
 
         res.json({ 
             message: "User registered successfully", 
@@ -117,7 +119,7 @@ router.post("/login", async (req, res) => {
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(400).json({ message: "Invalid password" });
 
-        const token = jwt.sign({ id: user.id, role: user.role }, SECRET, { expiresIn: "1d" });
+        const token = jwt.sign({ id: user.id, role: user.role, is_active: user.is_active }, SECRET, { expiresIn: "1d" });
         const { password: _, ...safeUser } = user;
         res.json({ message: "Login successful", token, user: safeUser });
 

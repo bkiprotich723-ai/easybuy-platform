@@ -179,21 +179,103 @@ router.get("/seller-orders", verifyToken, async (req, res) => {
 router.post("/deposit", verifyToken, async (req, res) => {
     const { amount } = req.body;
     const user_id = req.user.id;
+    const role = req.user.role;
+
     if (!amount || isNaN(amount) || amount <= 0) {
         return res.status(400).json({ message: "Valid amount required" });
     }
+
+    const ACTIVATION_FEES = { seller: 500, affiliate: 100 };
+    const REFERRAL_BONUS = { seller: 150, affiliate: 30 };
+
     const client = await db.connect();
     try {
         await client.query("BEGIN");
+
+        // Check current activation status
+        const userResult = await client.query(
+            "SELECT is_active, referred_by, name FROM users WHERE id = $1",
+            [user_id]
+        );
+        const user = userResult.rows[0];
+
+        // Credit wallet
         await client.query(
-            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", [amount, user_id]
+            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+            [amount, user_id]
         );
         await client.query(
-            `INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, 'deposit', $2, $3)`,
+            `INSERT INTO wallet_transactions (user_id, type, amount, description)
+             VALUES ($1, 'deposit', $2, $3)`,
             [user_id, amount, `Wallet deposit of KES ${amount}`]
         );
+
+        // Check if this deposit activates the account
+        const activationFee = ACTIVATION_FEES[role];
+        let activated = false;
+
+        if (activationFee && !user.is_active) {
+            // Check total deposits so far
+            const totalDeposits = await client.query(
+                `SELECT COALESCE(SUM(amount), 0) as total 
+                 FROM wallet_transactions 
+                 WHERE user_id = $1 AND type = 'deposit'`,
+                [user_id]
+            );
+            const total = parseFloat(totalDeposits.rows[0].total);
+
+            if (total >= activationFee) {
+                // Activate account
+                await client.query(
+                    "UPDATE users SET is_active = true WHERE id = $1",
+                    [user_id]
+                );
+                activated = true;
+
+                // Deduct activation fee from wallet
+                await client.query(
+                    "UPDATE wallets SET balance = balance - $1 WHERE user_id = $2",
+                    [activationFee, user_id]
+                );
+                await client.query(
+                    `INSERT INTO wallet_transactions (user_id, type, amount, description)
+                     VALUES ($1, 'activation_fee', $2, $3)`,
+                    [user_id, -activationFee, `Account activation fee for ${role} account`]
+                );
+
+                // NOW credit referrer bonus
+                if (user.referred_by) {
+                    const referrerResult = await client.query(
+                        "SELECT id FROM users WHERE referral_code = $1",
+                        [user.referred_by]
+                    );
+                    if (referrerResult.rows[0]) {
+                        const referrerId = referrerResult.rows[0].id;
+                        const bonus = REFERRAL_BONUS[role] || 0;
+
+                        await client.query(
+                            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+                            [bonus, referrerId]
+                        );
+                        await client.query(
+                            `INSERT INTO wallet_transactions (user_id, type, amount, description)
+                             VALUES ($1, 'referral_bonus', $2, $3)`,
+                            [referrerId, bonus, `Referral bonus — ${user.name} activated as ${role}`]
+                        );
+                    }
+                }
+            }
+        }
+
         await client.query("COMMIT");
-        res.json({ message: "Deposit successful", amount });
+        res.json({
+            message: activated
+                ? `Account activated successfully! KES ${activationFee} activation fee deducted.`
+                : "Deposit successful",
+            amount,
+            activated
+        });
+
     } catch (err) {
         await client.query("ROLLBACK");
         res.status(500).json({ error: err.message });

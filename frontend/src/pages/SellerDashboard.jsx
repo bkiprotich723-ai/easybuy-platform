@@ -27,12 +27,22 @@ export default function SellerDashboard() {
     const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [profileTab, setProfileTab] = useState('info');
+    const [isActive, setIsActive] = useState(true);
+    const [depositAmount, setDepositAmount] = useState('');
+    const [activating, setActivating] = useState(false);
 
     useEffect(() => {
         fetchAll();
         fetchProfile();
+        checkActivation();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const checkActivation = async () => {
+        try {
+            const res = await API.get('/api/profile');
+            setIsActive(res.data.is_active);
+        } catch (err) { console.error(err); }
+    };
     const fetchAll = async () => {
         try {
             const [e, s, p, r, t, o, w, tk] = await Promise.all([
@@ -242,6 +252,22 @@ export default function SellerDashboard() {
         setShowForm(false);
     };
 
+    const handleActivation = async (e) => {
+        e.preventDefault();
+        setActivating(true);
+        try {
+            const res = await API.post('/api/transactions/deposit', { amount: depositAmount });
+            setMessage(res.data.message);
+            if (res.data.activated) {
+                setIsActive(true);
+                fetchAll();
+            }
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        } finally {
+            setActivating(false);
+        }
+    };
     const handleLogout = () => {
         if (window.confirm('Are you sure you want to log out?')) {
             logout();
@@ -308,6 +334,28 @@ export default function SellerDashboard() {
                 {message && (
                     <div style={message.startsWith('✅') ? s.success : s.error} onClick={() => setMessage('')}>
                         {message} <span style={{ float: 'right', cursor: 'pointer' }}>✕</span>
+                    </div>
+                )}
+                {!isActive && (
+                    <div style={s.activationWall}>
+                        <div style={s.activationIcon}>🔒</div>
+                        <div style={s.activationTitle}>Activate your seller account</div>
+                        <div style={s.activationSub}>
+                           To start selling and access all features, pay the one-time activation fee of <b style={{color:'#f7c948'}}>KES 500</b>.
+                           Your account will be activated instantly after payment.
+                        </div>
+                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
+                           <label style={s.label}>Deposit amount (KES)</label>
+                           <input style={s.input} type="number" placeholder="500"
+                               value={depositAmount}
+                               onChange={e => setDepositAmount(e.target.value)} required />
+                           <button style={s.submitBtn} type="submit" disabled={activating}>
+                               {activating ? 'Processing...' : '💳 Pay KES 500 & Activate'}
+                           </button>
+                        </form>
+                        <div style={{marginTop:16, fontSize:13, color:'#5a6480'}}>
+                           After activation your referrer will receive their bonus automatically.
+                        </div>
                     </div>
                 )}
 
@@ -819,5 +867,9 @@ const s = {
     referralBox: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: 12, marginBottom: 14 },
     referralCode: { fontSize: 16, color: '#5dd6a3', fontFamily: 'monospace', marginTop: 4 },
     success: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
+    activationWall: { background: '#161b27', border: '1px solid #f7c948', borderRadius: 16, padding: '40px 24px', textAlign: 'center', marginBottom: 24 },
+    activationIcon: { fontSize: 48, marginBottom: 16 },
+    activationTitle: { fontSize: 20, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 },
+    activationSub: { fontSize: 14, color: '#8892a4', lineHeight: 1.7, marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
 };
