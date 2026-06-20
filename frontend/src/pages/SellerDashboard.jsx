@@ -28,8 +28,10 @@ export default function SellerDashboard() {
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [profileTab, setProfileTab] = useState('info');
     const [isActive, setIsActive] = useState(true);
-    const [depositAmount, setDepositAmount] = useState('');
+    const [depositAmount] = useState('500'); // eslint-disable-line no-unused-vars
+    const [mpesaNumber, setMpesaNumber] = useState('');
     const [activating, setActivating] = useState(false);
+    const [activationMsg, setActivationMsg] = useState('');
 
     useEffect(() => {
         fetchAll();
@@ -254,10 +256,14 @@ export default function SellerDashboard() {
 
     const handleActivation = async (e) => {
         e.preventDefault();
+        setActivationMsg('');
         setActivating(true);
         try {
+            if (mpesaNumber) {
+                await API.put('/api/profile/update', { name: profile?.name || '', profile_picture: profileForm.profile_picture, mpesa_number: mpesaNumber });
+            }
             const res = await API.post('/api/transactions/deposit', { amount: depositAmount });
-            setMessage(res.data.message);
+            setActivationMsg('✅ Account activated! Welcome to EasyBuy Seller Hub.');
             if (res.data.activated) {
                 setIsActive(true);
                 fetchAll();
@@ -336,28 +342,37 @@ export default function SellerDashboard() {
                         {message} <span style={{ float: 'right', cursor: 'pointer' }}>✕</span>
                     </div>
                 )}
-                {!isActive && (
+                {/* ── Activation wall — blocks ALL content until paid ── */}
+                {!isActive ? (
                     <div style={s.activationWall}>
                         <div style={s.activationIcon}>🔒</div>
                         <div style={s.activationTitle}>Activate your seller account</div>
                         <div style={s.activationSub}>
-                           To start selling and access all features, pay the one-time activation fee of <b style={{color:'#f7c948'}}>KES 500</b>.
-                           Your account will be activated instantly after payment.
+                            To start selling and access all features, pay the one-time activation fee of{' '}
+                            <b style={{color:'#f7c948'}}>KES 500</b>. Your account will be activated instantly after payment.
                         </div>
-                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
-                           <label style={s.label}>Deposit amount (KES)</label>
-                           <input style={s.input} type="number" placeholder="500"
-                               value={depositAmount}
-                               onChange={e => setDepositAmount(e.target.value)} required />
-                           <button style={s.submitBtn} type="submit" disabled={activating}>
-                               {activating ? 'Processing...' : '💳 Pay KES 500 & Activate'}
-                           </button>
+                        <form onSubmit={handleActivation} style={{maxWidth:340, margin:'0 auto', textAlign:'left'}}>
+                            <label style={s.label}>M-Pesa number <span style={{color:'#5a6480'}}>(for future withdrawals)</span></label>
+                            <input style={s.input} type="tel" placeholder="e.g. 0712345678"
+                                value={mpesaNumber}
+                                onChange={e => setMpesaNumber(e.target.value)} />
+                            <label style={s.label}>Deposit amount (KES)</label>
+                            <input style={{...s.input, letterSpacing:2, fontWeight:700, color:'#f7c948'}}
+                                type="number" value={depositAmount} readOnly />
+                            <button style={s.submitBtn} type="submit" disabled={activating}>
+                                {activating ? 'Processing...' : '💳 Pay KES 500 & Activate'}
+                            </button>
                         </form>
-                        <div style={{marginTop:16, fontSize:13, color:'#5a6480'}}>
-                           After activation your referrer will receive their bonus automatically.
+                        {activationMsg && (
+                            <div style={{ marginTop: 14, fontSize: 13, color: activationMsg.startsWith('✅') ? '#6ee7b7' : '#f09595', textAlign:'center' }}>
+                                {activationMsg}
+                            </div>
+                        )}
+                        <div style={{marginTop:16, fontSize:12, color:'#5a6480', textAlign:'center'}}>
+                            After activation your referrer will receive their KES 150 bonus automatically.
                         </div>
                     </div>
-                )}
+                ) : (<>
 
                 {/* ════ Dashboard ════ */}
                 {activeTab === 'dashboard' && (
@@ -748,6 +763,8 @@ export default function SellerDashboard() {
                             </div>
                         )}
                     </div>
+                )}
+                </>
                 )}
             </div>
         </div>
