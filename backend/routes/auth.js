@@ -6,7 +6,9 @@ const router = express.Router();
 
 const SECRET = process.env.JWT_SECRET || "easybuy_secret_key";
 
-// ─── Generate unique 8-char referral code (letters + numbers + special chars) ─
+const FEES = { seller: 500, affiliate: 100 };
+const REFERRAL_BONUS = { seller: 150, affiliate: 30 };
+
 function generateReferralCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
     let code = '';
@@ -16,8 +18,7 @@ function generateReferralCode() {
     return code;
 }
 
-// ─── Helper: credit referrer KES 30 when referred user registers ──────────────
-async function creditReferrer(referralCode, newUserName) {
+async function creditReferrer(referralCode, newUserName, role) {
     if (!referralCode) return;
     const referrerResult = await db.query(
         "SELECT id FROM users WHERE referral_code = $1", [referralCode]
@@ -25,30 +26,28 @@ async function creditReferrer(referralCode, newUserName) {
     if (referrerResult.rows.length === 0) return;
 
     const referrerId = referrerResult.rows[0].id;
-    const commission = 30;
+    const bonus = REFERRAL_BONUS[role] || 30;
 
     await db.query(
         "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
-        [commission, referrerId]
+        [bonus, referrerId]
     );
     await db.query(
         `INSERT INTO wallet_transactions (user_id, type, amount, description)
-         VALUES ($1, 'referral_commission', $2, $3)`,
-        [referrerId, commission, `Referral commission — ${newUserName} registered`]
+         VALUES ($1, 'referral_bonus', $2, $3)`,
+        [referrerId, bonus, `Referral bonus — ${newUserName} registered as ${role} (KES ${bonus})`]
     );
 }
 
-// ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post("/register", async (req, res) => {
     const { name, email, password, role, referral_code, payment_confirmed } = req.body;
-
     const userRole = role || "buyer";
     const PAID_ROLES = ["affiliate", "seller"];
 
     if (PAID_ROLES.includes(userRole) && !payment_confirmed) {
         return res.status(402).json({
-            message: "A registration fee of KES 100 is required to register as an affiliate or seller.",
-            fee_required: 100,
+            message: `Registration fee required: KES ${FEES[userRole]} for ${userRole} accounts.`,
+            fee_required: FEES[userRole],
         });
     }
 
@@ -64,7 +63,6 @@ router.post("/register", async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Generate unique 8-char referral code — retry on collision
         let newReferralCode;
         for (let i = 0; i < 5; i++) {
             const candidate = generateReferralCode();
@@ -86,12 +84,17 @@ router.post("/register", async (req, res) => {
 
         await db.query("INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [userId]);
 
-        // Credit referrer KES 30 immediately for paid role registrations
+        // Credit referrer with correct bonus based on role
         if (referral_code && PAID_ROLES.includes(userRole)) {
-            await creditReferrer(referral_code, name);
+            await creditReferrer(referral_code, name, userRole);
         }
 
-        res.json({ message: "User registered successfully", userId, referral_code: newReferralCode });
+        res.json({ 
+            message: "User registered successfully", 
+            userId, 
+            referral_code: newReferralCode,
+            fee_required: FEES[userRole] || 0
+        });
 
     } catch (err) {
         if (err.code === "23505") {
@@ -101,29 +104,18 @@ router.post("/register", async (req, res) => {
     }
 });
 
-// ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
         const user = result.rows[0];
 
-        if (!user) {
-            return res.status(400).json({ message: "User not found" });
-        }
-
-        // Account status checks
-        if (user.status === 'banned') {
-            return res.status(403).json({ message: "Your account has been banned. Contact support." });
-        }
-        if (user.status === 'restricted') {
-            return res.status(403).json({ message: "Your account is restricted. Contact support." });
-        }
+        if (!user) return res.status(400).json({ message: "User not found" });
+        if (user.status === 'banned') return res.status(403).json({ message: "Your account has been banned. Contact support." });
+        if (user.status === 'restricted') return res.status(403).json({ message: "Your account is restricted. Contact support." });
 
         const match = await bcrypt.compare(password, user.password);
-        if (!match) {
-            return res.status(400).json({ message: "Invalid password" });
-        }
+        if (!match) return res.status(400).json({ message: "Invalid password" });
 
         const token = jwt.sign({ id: user.id, role: user.role }, SECRET, { expiresIn: "1d" });
         const { password: _, ...safeUser } = user;
