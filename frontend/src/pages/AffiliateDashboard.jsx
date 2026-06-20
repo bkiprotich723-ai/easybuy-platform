@@ -146,7 +146,7 @@ export default function AffiliateDashboard() {
         setActivationMsg('');
         try {
             // Deposit into wallet — backend will detect activation threshold and
-            // credit the referrer's KES 150 bonus automatically on this endpoint.
+            // credit the referrer's KES 30 bonus automatically on this endpoint.
             await API.post('/api/transactions/deposit', { amount: amt });
             setActivationMsg('✅ Account activated! Your referrer has been credited.');
             setDepositAmount('');
@@ -215,7 +215,7 @@ export default function AffiliateDashboard() {
                 {!isActive && (
                     <div style={s.activationWall}>
                         <div style={s.activationIcon}>🔒</div>
-                        <div style={s.activationTitle}>Activate your seller account</div>
+                        <div style={s.activationTitle}>Activate your affiliate account</div>
                         <div style={s.activationSub}>
                             Pay the one-time activation fee of <b style={{color:'#f7c948'}}>KES 100</b> to access your referral link and start earning.        
                         </div>
@@ -234,7 +234,7 @@ export default function AffiliateDashboard() {
                             </div>
                         )}
                         <div style={{marginTop:16, fontSize:13, color:'#5a6480'}}>
-                            After activation your referrer will receive their KES 150 bonus automatically.
+                            After activation your referrer will receive their KES 30 bonus automatically.
                         </div>
                     </div>
                 )}
