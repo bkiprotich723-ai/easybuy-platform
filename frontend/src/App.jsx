@@ -11,7 +11,8 @@ import ProductDetail from './pages/ProductDetail';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import AffiliateDashboard from './pages/AffiliateDashboard';
-
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 export default function App() {
     return (
         <AuthProvider>
@@ -21,6 +22,8 @@ export default function App() {
                         <Route path="/" element={<Landing />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
 
                         <Route path="/product/:id" element={<ProductDetail />} />
 
