@@ -90,6 +90,11 @@ export default function Login() {
                         Register
                     </Link>
                 </p>
+                <p style={{...styles.footer, marginTop: 8}}>
+                    <Link to="/forgot-password" style={styles.link}>
+                        Forgot password?
+                    </Link>
+                </p>
             </div>
         </div>
     );
