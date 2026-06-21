@@ -73,17 +73,15 @@ router.get("/withdrawals", verifyToken, authorizeRoles("admin"), async (req, res
     }
 });
 
-// ✅ APPROVE WITHDRAWAL
+        // APPROVE WITHDRAWAL
 router.post("/withdrawals/:id/approve", verifyToken, authorizeRoles("admin"), async (req, res) => {
     const client = await db.connect();
     try {
         await client.query("BEGIN");
 
         const { id } = req.params;
-
         const withdrawalResult = await client.query(
-            "SELECT * FROM withdrawals WHERE id = $1",
-            [id]
+            "SELECT * FROM withdrawals WHERE id = $1", [id]
         );
         const withdrawal = withdrawalResult.rows[0];
 
@@ -97,33 +95,15 @@ router.post("/withdrawals/:id/approve", verifyToken, authorizeRoles("admin"), as
             return res.json({ message: "Already approved" });
         }
 
-        const walletResult = await client.query(
-            "SELECT * FROM wallets WHERE user_id = $1",
-            [withdrawal.user_id]
-        );
-        const wallet = walletResult.rows[0];
-
-        if (!wallet || wallet.balance < withdrawal.amount) {
-            await client.query("ROLLBACK");
-            return res.status(400).json({ message: "Insufficient balance" });
-        }
-
-        // Deduct wallet
+        // Just update status — balance already deducted on request
         await client.query(
-            "UPDATE wallets SET balance = balance - $1 WHERE user_id = $2",
-            [withdrawal.amount, withdrawal.user_id]
+            "UPDATE withdrawals SET status = 'approved' WHERE id = $1", [id]
         );
 
-        // Log transaction
         await client.query(
-            "INSERT INTO wallet_transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)",
-            [withdrawal.user_id, "withdrawal", -withdrawal.amount, "Withdrawal approved"]
-        );
-
-        // Update withdrawal status
-        await client.query(
-            "UPDATE withdrawals SET status = 'approved' WHERE id = $1",
-            [id]
+            `INSERT INTO wallet_transactions (user_id, type, amount, description)
+             VALUES ($1, 'withdrawal', $2, $3)`,
+            [withdrawal.user_id, -withdrawal.amount, `Withdrawal #${id} approved`]
         );
 
         await client.query("COMMIT");
@@ -136,6 +116,57 @@ router.post("/withdrawals/:id/approve", verifyToken, authorizeRoles("admin"), as
         client.release();
     }
 });
+
+// REJECT WITHDRAWAL — refund balance back to user
+router.post("/withdrawals/:id/reject", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    const client = await db.connect();
+    try {
+        await client.query("BEGIN");
+
+        const { id } = req.params;
+        const withdrawalResult = await client.query(
+            "SELECT * FROM withdrawals WHERE id = $1", [id]
+        );
+        const withdrawal = withdrawalResult.rows[0];
+
+        if (!withdrawal) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Withdrawal not found" });
+        }
+
+        if (withdrawal.status !== "pending") {
+            await client.query("ROLLBACK");
+            return res.json({ message: "Can only reject pending withdrawals" });
+        }
+
+        // Refund balance back
+        await client.query(
+            "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+            [withdrawal.amount, withdrawal.user_id]
+        );
+
+        await client.query(
+            `INSERT INTO wallet_transactions (user_id, type, amount, description)
+             VALUES ($1, 'withdrawal_refund', $2, $3)`,
+            [withdrawal.user_id, withdrawal.amount, `Withdrawal #${id} rejected — amount refunded`]
+        );
+
+        await client.query(
+            "UPDATE withdrawals SET status = 'rejected' WHERE id = $1", [id]
+        );
+
+        await client.query("COMMIT");
+        res.json({ message: "Withdrawal rejected and amount refunded" });
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});   
+
+
 // BAN / RESTRICT / ACTIVATE USER
 router.post("/users/:id/status", verifyToken, authorizeRoles("admin"), async (req, res) => {
     const { status } = req.body;

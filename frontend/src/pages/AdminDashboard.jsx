@@ -83,6 +83,17 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleReject = async (id) => {
+        if (!window.confirm('Reject this withdrawal and refund the user?')) return;
+        try {
+            await API.post(`/api/admin/withdrawals/${id}/reject`);
+            setMessage('✅ Withdrawal rejected and refunded');
+            fetchWithdrawals();
+            fetchStats();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
     const handleCloseTicket = async (id) => {
         try {
             await API.post(`/api/support/close/${id}`);
@@ -335,8 +346,11 @@ const handlePromoteAdmin = async (id) => {
                                             {w.status}
                                         </span>
                                         {w.status === 'pending' && (
-                                            <button style={s.approveBtn} onClick={() => handleApprove(w.id)}>Approve</button>
-                                        )}
+                                            <div style={{display:'flex', gap:6}}>
+                                                 <button style={s.approveBtn} onClick={() => handleApprove(w.id)}>Approve</button>
+                                                 <button style={s.rejectBtn} onClick={() => handleReject(w.id)}>Reject</button>
+                                            </div>
+                                         )}
                                     </div>
                                 </div>
                             ))}
@@ -531,6 +545,7 @@ const s = {
     activateBtn: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' },
     deleteBtn: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' },
     approveBtn: { background: '#1e2535', border: '0.5px solid #2d3348', color: '#a3adc2', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+    rejectBtn: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
     empty: { color: '#5a6480', fontSize: 13 },
     formBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 20 },
     label: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6 },
