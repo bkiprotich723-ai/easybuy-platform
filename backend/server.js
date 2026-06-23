@@ -17,7 +17,7 @@ const supportRoutes = require("./routes/support");
 const cartRoutes = require("./routes/cart");
 const profileRoutes = require("./routes/profile");
 const affiliateRoutes = require("./routes/affiliate");
-
+const passwordResetRoutes = require("./routes/passwordReset");
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -25,7 +25,7 @@ app.use(express.json());
 // Public routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-
+app.use("/api/auth", passwordResetRoutes);
 // Protected routes (require JWT)
 app.use("/api/transactions", verifyToken, transactionRoutes);
 app.use("/api/withdrawals", verifyToken, withdrawalRoutes);

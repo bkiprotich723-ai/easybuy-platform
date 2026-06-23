@@ -15,6 +15,7 @@ export default function BuyerDashboard() {
     const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [depositAmount, setDepositAmount] = useState('');
+    const [mpesaPhone, setMpesaPhone] = useState('');
     const [cartCount, setCartCount] = useState(0);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('all');
@@ -115,13 +116,41 @@ useEffect(() => {
     const handleDeposit = async (e) => {
         e.preventDefault();
         try {
-            await API.post('/api/transactions/deposit', { amount: depositAmount });
-            setMessage('✅ Deposit successful!');
+            const res = await API.post('/api/mpesa/stk-push', {
+               phone: mpesaPhone,
+               amount: depositAmount
+            });
+            setMessage('✅ ' + res.data.message);
             setDepositAmount('');
-            fetchWallet();
+            setMpesaPhone('');
+           // Poll for payment confirmation
+           if (res.data.checkoutRequestId) {
+              pollPaymentStatus(res.data.checkoutRequestId);
+            }
         } catch (err) {
             setMessage('❌ ' + (err.response?.data?.message || 'Deposit failed'));
         }
+    };
+
+    const pollPaymentStatus = (checkoutRequestId) => {
+       let attempts = 0;
+       const interval = setInterval(async () => {
+           attempts++;
+           if (attempts > 10) {
+               clearInterval(interval);
+               return;
+            }
+            try {
+               const res = await API.get(`/api/mpesa/status/${checkoutRequestId}`);
+               if (res.data.ResultCode === '0') {
+                   clearInterval(interval);
+                   setMessage('✅ Payment confirmed! Wallet updated.');
+                   fetchWallet();
+                }
+            } catch (err) {
+            console.error('Status check failed:', err);
+            }
+        }, 5000);
     };
 
     const handleLogout = () => {
@@ -315,13 +344,20 @@ useEffect(() => {
                                 <div style={s.sectionLabel}>Deposit funds</div>
                                 <div style={s.formBox}>
                                     <form onSubmit={handleDeposit}>
+                                        <label style={s.label}>M-Pesa phone number</label>
+                                        <input style={s.input} type="tel" placeholder="e.g. 0712345678"
+                                            value={mpesaPhone}
+                                            onChange={e => setMpesaPhone(e.target.value)} required />
                                         <label style={s.label}>Amount (KES)</label>
                                         <input style={s.input} type="number" placeholder="e.g. 1000"
                                             value={depositAmount}
                                             onChange={e => setDepositAmount(e.target.value)} required />
                                         <button style={{...s.submitBtn, background:'#5dd6a3', color:'#0f2820'}} type="submit">
-                                            💰 Deposit
+                                            📱 Pay via M-Pesa
                                         </button>
+                                        <div style={{fontSize:12, color:'#5a6480', marginTop:8}}>
+                                            You'll receive a PIN prompt on your phone after clicking Pay.
+                                        </div>
                                     </form>
                                 </div>
                             </div>
