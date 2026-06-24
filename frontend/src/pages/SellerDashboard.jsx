@@ -31,6 +31,7 @@ export default function SellerDashboard() {
     const [depositAmount] = useState('500'); // eslint-disable-line no-unused-vars
     const [mpesaNumber, setMpesaNumber] = useState('');
     const [activating, setActivating] = useState(false);
+    const [mpesaPhone, setMpesaPhone] = useState('');
     const [activationMsg, setActivationMsg] = useState('');
 
     useEffect(() => {
@@ -255,28 +256,42 @@ export default function SellerDashboard() {
     };
 
     const handleActivation = async (e) => {
-    e.preventDefault();
-    setActivationMsg('');
-    setActivating(true);
-    try {
-        if (mpesaNumber) {
-            await API.put('/api/profile/update', { name: profile?.name || '', profile_picture: profileForm.profile_picture, mpesa_number: mpesaNumber });
+        e.preventDefault();
+        setActivating(true);
+        try {
+            const res = await API.post('/api/mpesa/stk-push', {
+                phone: mpesaPhone,
+                amount: depositAmount
+            });
+            setMessage('✅ ' + res.data.message);
+            setDepositAmount('');
+            setMpesaPhone('');
+            if (res.data.checkoutRequestId) {
+                pollActivation(res.data.checkoutRequestId);
+            }
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        } finally {
+            setActivating(false);
         }
-        await API.post('/api/transactions/deposit', { amount: depositAmount });
-        setActivationMsg('✅ Account activated! Welcome to EasyBuy Seller Hub.');
+    };
 
-        // Re-check activation status from the server (source of truth)
-        const profileRes = await API.get('/api/profile');
-        if (profileRes.data.is_active) {
-            setIsActive(true);
-            fetchAll();
-        }
-    } catch (err) {
-        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-    } finally {
-        setActivating(false);
-    }
-};
+    const pollActivation = (checkoutRequestId) => {
+        let attempts = 0;
+        const interval = setInterval(async () => {
+           attempts++;
+           if (attempts > 10) { clearInterval(interval); return; }
+           try {
+               const res = await API.get(`/api/mpesa/status/${checkoutRequestId}`);
+               if (res.data.ResultCode === '0') {
+                   clearInterval(interval);
+                   setMessage('✅ Payment confirmed! Account activated.');
+                   setIsActive(true);
+                   fetchAll();
+                }
+            } catch (err) { console.error(err); }
+        }, 5000);
+    };
     const handleLogout = () => {
         if (window.confirm('Are you sure you want to log out?')) {
             logout();
@@ -354,17 +369,21 @@ export default function SellerDashboard() {
                             To start selling and access all features, pay the one-time activation fee of{' '}
                             <b style={{color:'#f7c948'}}>KES 500</b>. Your account will be activated instantly after payment.
                         </div>
-                        <form onSubmit={handleActivation} style={{maxWidth:340, margin:'0 auto', textAlign:'left'}}>
-                            <label style={s.label}>M-Pesa number <span style={{color:'#5a6480'}}>(for deposits)</span></label>
+                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
+                            <label style={s.label}>M-Pesa phone number</label>
                             <input style={s.input} type="tel" placeholder="e.g. 0712345678"
-                                value={mpesaNumber}
-                                onChange={e => setMpesaNumber(e.target.value)} />
-                            <label style={s.label}>Deposit amount (KES)</label>
-                            <input style={{...s.input, letterSpacing:2, fontWeight:700, color:'#f7c948'}}
-                                type="number" value={depositAmount} readOnly />
+                                value={mpesaPhone}
+                                onChange={e => setMpesaPhone(e.target.value)} required />
+                            <label style={s.label}>Amount (KES 500)</label>
+                            <input style={s.input} type="number" placeholder="500"
+                                value={depositAmount}
+                                onChange={e => setDepositAmount(e.target.value)} required />
                             <button style={s.submitBtn} type="submit" disabled={activating}>
-                                {activating ? 'Processing...' : '💳 Pay KES 500 & Activate'}
+                                {activating ? 'Processing...' : '📱 Pay via M-Pesa & Activate'}
                             </button>
+                            <div style={{fontSize:12, color:'#5a6480', marginTop:8}}>
+                                You'll receive a PIN prompt on your phone after clicking Pay.
+                            </div>
                         </form>
                         {activationMsg && (
                             <div style={{ marginTop: 14, fontSize: 13, color: activationMsg.startsWith('✅') ? '#6ee7b7' : '#f09595', textAlign:'center' }}>
@@ -612,12 +631,15 @@ export default function SellerDashboard() {
                         </div>
                         <div style={s.sectionLabel}>Request withdrawal</div>
                         <div style={s.formBox}>
-                            <form onSubmit={handleWithdraw}>
-                                <label style={s.label}>Amount (KES)</label>
-                                <input style={s.input} type="number" placeholder="e.g. 1000"
-                                    value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} required />
-                                <button style={s.submitBtn} type="submit">Request Withdrawal</button>
-                            </form>
+                           <form onSubmit={handleWithdraw}>
+                               <label style={s.label}>Amount (KES)</label>
+                               <input style={s.input} type="number" placeholder="e.g. 1000"
+                                  value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} required />
+                               <div style={{fontSize:12, color:'#5a6480', marginBottom:14}}>
+                                  💡 Make sure your M-Pesa number is saved in your profile for payout.
+                               </div>
+                               <button style={s.submitBtn} type="submit">Request Withdrawal</button>
+                           </form> 
                         </div>
                         <div style={s.sectionLabel}>My withdrawal history</div>
                         <div style={s.panel}>

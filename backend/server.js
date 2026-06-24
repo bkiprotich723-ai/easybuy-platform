@@ -18,12 +18,14 @@ const cartRoutes = require("./routes/cart");
 const profileRoutes = require("./routes/profile");
 const affiliateRoutes = require("./routes/affiliate");
 const passwordResetRoutes = require("./routes/passwordReset");
+const mpesaRoutes = require("./routes/mpesa");
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Public routes
 app.use("/api/auth", authRoutes);
+app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/auth", passwordResetRoutes);
 // Protected routes (require JWT)

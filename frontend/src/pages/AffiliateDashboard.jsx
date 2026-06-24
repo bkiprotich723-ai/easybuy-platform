@@ -30,7 +30,7 @@ export default function AffiliateDashboard() {
     const [mpesaNumber, setMpesaNumber] = useState('');
     const [activating, setActivating] = useState(false);
     const [activationMsg, setActivationMsg] = useState('');
-
+    const [mpesaPhone, setMpesaPhone] = useState('');
     useEffect(() => {
         fetchDashboard();
         const interval = setInterval(() => fetchDashboard(), 30000);
@@ -115,18 +115,39 @@ export default function AffiliateDashboard() {
 
     async function handleActivation(e) {
         e.preventDefault();
-        setActivating(true); setActivationMsg('');
+        setActivating(true);
+        setActivationMsg('');
         try {
-            if (mpesaNumber) {
-                await API.put('/api/profile/update', { ...profileForm, mpesa_number: mpesaNumber });
+            const res = await API.post('/api/mpesa/stk-push', {
+                phone: mpesaPhone,
+                amount: parseFloat(depositAmount)
+            });
+            setActivationMsg('✅ ' + res.data.message);
+            setDepositAmount('');
+            setMpesaPhone('');
+            if (res.data.checkoutRequestId) {
+                let attempts = 0;
+                const interval = setInterval(async () => {
+                    attempts++;
+                    if (attempts > 10) { clearInterval(interval); return; }
+                    try {
+                        const statusRes = await API.get(`/api/mpesa/status/${res.data.checkoutRequestId}`);
+                        if (statusRes.data.ResultCode === '0') {
+                           clearInterval(interval);
+                           setActivationMsg('✅ Payment confirmed! Account activated.');
+                           setIsActive(true);
+                           fetchDashboard();
+                        }
+                    } catch (err) { console.error(err); }
+                }, 5000);
             }
-            await API.post('/api/transactions/deposit', { amount: 100 });
-            setActivationMsg('✅ Account activated! Your referrer has been credited.');
-            fetchDashboard();
         } catch (err) {
-            setActivationMsg('❌ ' + (err.response?.data?.message || 'Activation failed. Try again.'));
-        } finally { setActivating(false); }
+            setActivationMsg('❌ ' + (err.response?.data?.message || 'Failed'));
+        } finally {
+            setActivating(false);
+        }
     }
+
 
     function copyText(text, label) {
         navigator.clipboard.writeText(text);
@@ -181,16 +202,21 @@ export default function AffiliateDashboard() {
                             Pay the one-time activation fee of <b style={{ color: '#f7c948' }}>KES 100</b> to access
                             your referral link, promo tools, and start earning commissions.
                         </div>
-                        <form onSubmit={handleActivation} style={{ maxWidth: 340, margin: '0 auto', textAlign: 'left' }}>
-                            <label style={s.label}>M-Pesa number <span style={{ color: '#5a6480' }}>(for deposits)</span></label>
+                        <form onSubmit={handleActivation} style={{maxWidth:320, margin:'0 auto'}}>
+                            <label style={s.label}>M-Pesa phone number</label>
                             <input style={s.input} type="tel" placeholder="e.g. 0712345678"
-                                value={mpesaNumber} onChange={e => setMpesaNumber(e.target.value)} />
-                            <label style={s.label}>Deposit amount (KES)</label>
-                            <input style={{ ...s.input, fontWeight: 700, color: '#f7c948' }}
-                                type="number" value="100" readOnly />
-                            <button style={s.submitBtn} type="submit" disabled={activating}>
-                                {activating ? 'Processing...' : '💳 Pay KES 100 & Activate'}
+                                value={depositAmount === '' ? '' : mpesaPhone}
+                                onChange={e => setMpesaPhone(e.target.value)} required />
+                            <label style={s.label}>Amount (KES 100)</label>
+                            <input style={s.input} type="number" placeholder="100"
+                                value={depositAmount}
+                                onChange={e => setDepositAmount(e.target.value)} required />
+                            <button style={s.primaryBtn} type="submit" disabled={activating}>
+                                {activating ? 'Processing...' : '📱 Pay via M-Pesa & Activate'}
                             </button>
+                            <div style={{fontSize:12, color:'#5a6480', marginTop:8}}>
+                                You'll receive a PIN prompt on your phone after clicking Pay.
+                            </div>
                         </form>
                         {activationMsg && (
                             <div style={{ marginTop: 14, fontSize: 13, textAlign: 'center', color: activationMsg.startsWith('✅') ? '#6ee7b7' : '#f09595' }}>
