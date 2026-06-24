@@ -24,14 +24,14 @@ export default function SellerDashboard() {
     const [form, setForm] = useState({ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' });
     const [bulkForms, setBulkForms] = useState([{ name: '', description: '', price: '', image: '', stock: 0, category: 'general', specifications: '' }]);
     const [profile, setProfile] = useState(null);
+    const [isActive, setIsActive] = useState(true);
+    const [mpesaPhone, setMpesaPhone] = useState('');
     const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [profileTab, setProfileTab] = useState('info');
-    const [isActive, setIsActive] = useState(true);
-    const [depositAmount] = useState('500'); // eslint-disable-line no-unused-vars
+    const [depositAmount, setDepositAmount] = useState(''); 
     const [mpesaNumber, setMpesaNumber] = useState('');
     const [activating, setActivating] = useState(false);
-    const [mpesaPhone, setMpesaPhone] = useState('');
     const [activationMsg, setActivationMsg] = useState('');
 
     useEffect(() => {

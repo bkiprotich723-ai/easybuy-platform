@@ -13,24 +13,23 @@ export default function AffiliateDashboard() {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
     const [copied, setCopied] = useState('');
-
     const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
     const [editMode, setEditMode] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [profileMsg, setProfileMsg] = useState('');
-
     const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [pwMsg, setPwMsg] = useState('');
     const [pwLoading, setPwLoading] = useState(false);
-
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [withdrawMsg, setWithdrawMsg] = useState('');
     const [withdrawing, setWithdrawing] = useState(false);
-
     const [mpesaNumber, setMpesaNumber] = useState('');
+    const [isActive, setIsActive] = useState(true);
+    const [depositAmount, setDepositAmount] = useState('');
     const [activating, setActivating] = useState(false);
     const [activationMsg, setActivationMsg] = useState('');
     const [mpesaPhone, setMpesaPhone] = useState('');
+    
     useEffect(() => {
         fetchDashboard();
         const interval = setInterval(() => fetchDashboard(), 30000);
@@ -172,7 +171,7 @@ export default function AffiliateDashboard() {
     const balance = parseFloat(data.wallet_balance || 0);
     const totalEarned = parseFloat(data.total_earned || 0);
     const referralLink = `${window.location.origin}/register?ref=${data.referral_code}`;
-    const isActive = !!data.is_active;
+    
 
     return (
         <div style={s.page}>
