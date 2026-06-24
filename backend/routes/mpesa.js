@@ -60,7 +60,7 @@ router.post("/stk-push", verifyToken, async (req, res) => {
                 BusinessShortCode: SHORTCODE,
                 Password: password,
                 Timestamp: timestamp,
-                TransactionType: "CustomerBuyGoodsOnline",
+                TransactionType: MPESA_ENV === "production" ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline",
                 Amount: Math.ceil(amount),
                 PartyA: formattedPhone,
                 PartyB: SHORTCODE,
