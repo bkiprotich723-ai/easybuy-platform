@@ -23,7 +23,9 @@ export default function AdminDashboard() {
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const [profileTab, setProfileTab] = useState('info');
     const [uploading, setUploading] = useState(false);
-    const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });     
+    const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });
+    const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'buyer', referral_code: '' });
+    const [addingUser, setAddingUser] = useState(false);    
     useEffect(() => {
         fetchStats();
         fetchUsers();
@@ -193,6 +195,22 @@ const handlePromoteAdmin = async (id) => {
         setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
     }
 };
+    const handleAddUser = async (e) => {
+        e.preventDefault();
+        setAddingUser(true);
+        try {
+            await API.post('/api/admin/add-user', userForm);
+            setMessage('✅ User added successfully');
+            setUserForm({ name: '', email: '', password: '', role: 'buyer', referral_code: '' });
+            fetchUsers();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed to add user'));
+        } finally {
+            setAddingUser(false);
+        }
+    };
+
+    const handleUpdateProfile = async (e) => {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
@@ -502,6 +520,46 @@ const handlePromoteAdmin = async (id) => {
                     onChange={e => setAdminForm({...adminForm, password: e.target.value})} required />
                 <button style={s.approveBtn} type="submit">Create Admin</button>
             </form>
+        </div>
+        <div style={s.formBox}>
+            <div style={{fontSize:14, fontWeight:600, color:'#e2e8f0', marginBottom:4}}>Add user manually</div>
+            <div style={{fontSize:12, color:'#5a6480', marginBottom:14}}>
+                Create any account directly — no email verification required.
+            </div>
+            <form onSubmit={handleAddUser}>
+                <label style={s.label}>Full name</label>
+                <input style={s.input} placeholder="Jane Mwangi"
+                    value={userForm.name}
+                    onChange={e => setUserForm({...userForm, name: e.target.value})} required />
+                <label style={s.label}>Email</label>
+                <input style={s.input} type="email" placeholder="jane@email.com"
+                    value={userForm.email}
+                    onChange={e => setUserForm({...userForm, email: e.target.value})} required />
+                <label style={s.label}>Password</label>
+                <input style={s.input} type="password" placeholder="••••••••"
+                    value={userForm.password}
+                    onChange={e => setUserForm({...userForm, password: e.target.value})} required />
+                <label style={s.label}>Role</label>
+                <select style={s.input} value={userForm.role}
+                    onChange={e => setUserForm({...userForm, role: e.target.value})}>
+                    <option value="buyer">Buyer</option>
+                    <option value="seller">Seller</option>
+                    <option value="affiliate">Affiliate</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <label style={s.label}>Referral code <span style={{color:'#5a6480'}}>(optional)</span></label>
+                <input style={s.input} placeholder="Referrer's code if applicable"
+                    value={userForm.referral_code}
+                    onChange={e => setUserForm({...userForm, referral_code: e.target.value})} />
+                <button style={{...s.approveBtn, background:'#7c6ef7', color:'#fff', border:'none'}}
+                    type="submit" disabled={addingUser}>
+                    {addingUser ? 'Adding...' : '+ Add user'}
+                </button>
+            </form>
+        </div>
+
+        <div style={{fontSize:12, color:'#5a6480', textTransform:'uppercase', letterSpacing:0.8, marginBottom:14}}>
+            Promote existing user to admin
         </div>
         <div style={{fontSize:12, color:'#5a6480', textTransform:'uppercase', letterSpacing:0.8, marginBottom:14}}>
             Promote existing user to admin

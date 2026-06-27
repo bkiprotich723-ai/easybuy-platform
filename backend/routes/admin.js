@@ -237,4 +237,49 @@ router.post("/users/:id/promote", verifyToken, authorizeRoles("admin"), async (r
     }
 });
 
+// POST /api/admin/add-user — manually add any user
+router.post("/add-user", verifyToken, authorizeRoles("admin"), async (req, res) => {
+    const { name, email, password, role, referral_code } = req.body;
+    if (!name || !email || !password || !role) {
+        return res.status(400).json({ message: "Name, email, password and role are required." });
+    }
+    try {
+        const bcrypt = require("bcrypt");
+
+        // Check email not already taken
+        const existing = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (existing.rows.length > 0) {
+            return res.status(400).json({ message: "Email already in use." });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Generate referral code
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+        let newReferralCode = '';
+        for (let i = 0; i < 8; i++) {
+            newReferralCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const result = await db.query(
+            `INSERT INTO users (name, email, password, role, referral_code, referred_by, is_verified)
+             VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id`,
+            [name, email, hashedPassword, role, newReferralCode, referral_code || null]
+        );
+
+        const userId = result.rows[0].id;
+
+        // Create wallet
+        await db.query(
+            "INSERT INTO wallets (user_id, balance) VALUES ($1, 0)", [userId]
+        );
+
+        res.json({ message: "User added successfully", userId });
+    } catch (err) {
+        if (err.code === "23505") {
+            return res.status(400).json({ message: "Email already in use." });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
 module.exports = router;
