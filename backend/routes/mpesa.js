@@ -78,7 +78,6 @@ router.post("/stk-push", verifyToken, async (req, res) => {
         }
         const checkoutRequestId = response.data.CheckoutRequestID;
         
-        const checkoutRequestId = response.data.CheckoutRequestID;
 
         // Save pending transaction
         await db.query(
