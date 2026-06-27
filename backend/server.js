@@ -38,7 +38,7 @@ app.use("/api/seller", verifyToken, requireActive, sellerRoutes);
 app.use("/api/seller", verifyToken, requireActive, sellerDashboardRoutes);
 app.use("/api/revenue", verifyToken, revenueRoutes);
 app.use("/api/reviews", reviewRoutes);
-app.use("/api/support", verifyToken, supportRoutes);
+app.use("/api/support", supportRoutes); // already registered above, public endpoint handled within
 app.use("/api/cart", verifyToken, cartRoutes);
 app.use("/api/profile", verifyToken, profileRoutes);
 app.use("/api/admin", verifyToken, adminRoutes);
