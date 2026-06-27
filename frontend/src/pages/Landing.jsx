@@ -53,7 +53,7 @@ export default function Landing() {
                             <li style={s.perk}>✅ Wallet-based checkout</li>
                             <li style={s.perk}>✅ Earn via referral program</li>
                         </ul>
-                        <Link to="/register" style={{...s.roleCta, background:'#7c6ef7', color:'#fff'}}>Join as a buyer</Link>
+                        <Link to="/register?role=buyer" style={{...s.roleCta, background:'#7c6ef7', color:'#fff'}}>Join as a buyer</Link>
                     </div>
                     <div style={s.roleCard}>
                         <div style={{...s.roleIcon, background:'#0f2820', color:'#5dd6a3'}}>🏪</div>
@@ -64,7 +64,7 @@ export default function Landing() {
                             <li style={s.perk}>✅ Seller dashboard & analytics</li>
                             <li style={s.perk}>✅ Instant wallet payouts</li>
                         </ul>
-                        <Link to="/register" style={{...s.roleCta, background:'#1a3530', color:'#5dd6a3', border:'0.5px solid #2a5048'}}>Open a store</Link>
+                        <Link to="/register?role=seller" style={{...s.roleCta, background:'#1a3530', color:'#5dd6a3', border:'0.5px solid #2a5048'}}>Open a store</Link>
                     </div>
                     <div style={s.roleCard}>
                         <div style={{...s.roleIcon, background:'#2a1f08', color:'#f7c948'}}>🔗</div>
@@ -75,7 +75,7 @@ export default function Landing() {
                             <li style={s.perk}>✅ Unique referral code</li>
                             <li style={s.perk}>✅ No selling required</li>
                         </ul>
-                        <Link to="/register" style={{...s.roleCta, background:'#2a1f08', color:'#f7c948', border:'0.5px solid #4a3510'}}>Join affiliate program</Link>
+                        <Link to="/register?role=affiliate" style={{...s.roleCta, background:'#2a1f08', color:'#f7c948', border:'0.5px solid #4a3510'}}>Join affiliate program</Link>
                     </div>
                 </div>
             </div>

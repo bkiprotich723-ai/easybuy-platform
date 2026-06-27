@@ -13,7 +13,7 @@ export default function AdminDashboard() {
     const [tickets, setTickets] = useState([]);
     const [activeTab, setActiveTab] = useState('overview');
     const [message, setMessage] = useState('');
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [profile, setProfile] = useState(null);
     const [profileForm, setProfileForm] = useState({ name: '', profile_picture: '', mpesa_number: '' });
     const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });

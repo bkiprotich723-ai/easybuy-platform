@@ -15,8 +15,10 @@ export default function Register() {
     const refFromStorage = localStorage.getItem('pending_ref') || '';
     const initialRef = refFromUrl || refFromStorage;
 
+    const roleFromUrl = searchParams.get('role') || 'buyer';
+
     const [form, setForm] = useState({
-        name: '', email: '', password: '', confirm_password: '', role: 'buyer',
+        name: '', email: '', password: '', confirm_password: '', role: roleFromUrl,
         referral_code: initialRef,
     });
     const [error, setError] = useState('');
