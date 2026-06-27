@@ -43,6 +43,7 @@ export default function AffiliateDashboard() {
                 API.get('/api/profile'),
             ]);
             setData(dashRes.data);
+            setIsActive(profileRes.data.is_active !== false);
             setProfileForm({
                 name: profileRes.data.name || '',
                 profile_picture: profileRes.data.profile_picture || '',
