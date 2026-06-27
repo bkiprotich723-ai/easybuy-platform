@@ -20,6 +20,8 @@ const affiliateRoutes = require("./routes/affiliate");
 const passwordResetRoutes = require("./routes/passwordReset");
 const mpesaRoutes = require("./routes/mpesa");
 const app = express();
+const statsRoutes = require("./routes/stats");
+
 app.use(cors());
 app.use(express.json());
 
@@ -27,6 +29,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/stats", statsRoutes);
 app.use("/api/auth", passwordResetRoutes);
 // Protected routes (require JWT)
 app.use("/api/transactions", verifyToken, transactionRoutes);

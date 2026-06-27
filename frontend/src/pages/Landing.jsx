@@ -1,7 +1,32 @@
 import logo from '../assets/logo.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import API from '../api/axios';
 
 export default function Landing() {
+    const navigate = useNavigate();
+    const [stats, setStats] = useState({ users: '...', products: '...', payouts: '...' });
+    const [products, setProducts] = useState([]);
+    const [search, setSearch] = useState('');
+    const [showAbout, setShowAbout] = useState(false);
+
+    useEffect(() => {
+        // Fetch real stats
+        API.get('/api/stats/public').then(res => {
+            setStats(res.data);
+        }).catch(() => {
+            setStats({ users: '12,400+', products: '3,800+', payouts: 'KES 4.2M' });
+        });
+        // Fetch products for browse section
+        API.get('/api/products').then(res => {
+            setProducts(res.data.slice(0, 8));
+        }).catch(() => {});
+    }, []);
+
+    const filtered = products.filter(p =>
+        p.name.toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <div style={s.page}>
             <div style={s.nav}>
@@ -19,25 +44,94 @@ export default function Landing() {
                 <p style={s.heroSub}>Shop from thousands of products, launch your store, or earn commissions by referring friends. EasyBuy works for everyone.</p>
                 <div style={s.heroBtns}>
                     <Link to="/register" style={s.primaryBtn}>Start for free</Link>
-                    <Link to="/register" style={s.ghostBtn}>Browse products</Link>
+                    <a href="#browse" style={s.ghostBtn} onClick={e => { e.preventDefault(); document.querySelector('[data-browse]')?.scrollIntoView({behavior:'smooth'}); }}>Browse products</a>
                 </div>
             </div>
 
             <div style={s.statsBar}>
                 <div style={s.statItem}>
-                    <div style={s.statNum}>12,400+</div>
+                    <div style={s.statNum}>{stats.users}</div>
                     <div style={s.statDesc}>Active users</div>
                 </div>
                 <div style={{...s.statItem, borderLeft:'0.5px solid #1e2535', borderRight:'0.5px solid #1e2535'}}>
-                    <div style={s.statNum}>3,800+</div>
+                    <div style={s.statNum}>{stats.products}</div>
                     <div style={s.statDesc}>Products listed</div>
                 </div>
                 <div style={s.statItem}>
-                    <div style={s.statNum}>KES 4.2M</div>
+                    <div style={s.statNum}>{stats.payouts}</div>
                     <div style={s.statDesc}>Paid out to sellers</div>
                 </div>
             </div>
 
+            {/* ── Browse Products ── */}
+            <div style={s.section} data-browse>
+                <div style={s.sectionTag}>Browse products</div>
+                <div style={s.sectionTitle}>Shop without signing up</div>
+                <div style={s.sectionSub}>Explore what's available — create an account when you're ready to buy</div>
+                <input
+                    style={s.searchInput}
+                    placeholder="🔍 Search products..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+                <div style={s.productGrid}>
+                    {filtered.length === 0 && (
+                        <div style={{ gridColumn: '1/-1', color: '#5a6480', padding: 24 }}>No products found.</div>
+                    )}
+                    {filtered.map(p => (
+                       <div key={p.id} style={s.productCard} onClick={() => navigate(`/product/${p.id}`)}>
+                           {p.image
+                               ? <img src={p.image} alt={p.name} style={s.productImg} />
+                               : <div style={s.productImgPlaceholder}>🛒</div>
+                            }
+                            <div style={s.productInfo}>
+                               <div style={s.productCategory}>{p.category}</div>
+                               <div style={s.productName}>{p.name}</div>
+                               <div style={s.productPrice}>KES {parseFloat(p.price).toLocaleString()}</div>
+                               <div style={{ ...s.stockTag, ...(p.stock === 0 ? s.outOfStock : s.inStock) }}>
+                                   {p.stock === 0 ? 'Out of stock' : `${p.stock} in stock`}
+                               </div>
+                            </div>
+                       </div>
+                    ))}
+                </div>
+                {products.length > 0 && (
+                    <Link to="/register" style={{ ...s.primaryBtn, display: 'inline-block', marginTop: 24 }}>
+                        Sign up to buy →
+                    </Link>
+                )}
+            </div>
+
+            {/* ── About Modal ── */}
+            {showAbout && (
+               <div style={s.modalOverlay} onClick={() => setShowAbout(false)}>
+                   <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+                        <button style={s.modalClose} onClick={() => setShowAbout(false)}>✕</button>
+                        <h2 style={s.modalTitle}>About EasyBuy</h2>
+                        <p style={s.modalText}>
+                            EasyBuy is Kenya's fastest growing digital marketplace, built to connect buyers,
+                            sellers, and affiliates in one seamless platform.
+                        </p>
+                        <p style={s.modalText}>
+                            Founded in 2026, our mission is to make commerce accessible to every Kenyan —
+                            whether you want to shop from the comfort of your home, launch your own online
+                            store, or earn passive income by referring friends.
+                        </p>
+                        <p style={s.modalText}>
+                            We handle the payments, the platform, and the technology — so you can focus on
+                            what matters: buying, selling, and earning.
+                        </p>
+                        <div style={s.modalStats}>
+                            <div style={s.modalStat}><b style={{ color: '#7c6ef7' }}>{stats.users}</b><br />Active users</div>
+                            <div style={s.modalStat}><b style={{ color: '#5dd6a3' }}>{stats.products}</b><br />Products listed</div>
+                            <div style={s.modalStat}><b style={{ color: '#f7c948' }}>{stats.payouts}</b><br />Paid to sellers</div>
+                        </div>
+                        <Link to="/register" style={{ ...s.primaryBtn, display: 'block', textAlign: 'center', marginTop: 20 }}>
+                           Join EasyBuy today
+                        </Link>
+                   </div>
+               </div>
+             )}
             <div style={s.section}>
                 <div style={s.sectionTag}>Choose your path</div>
                 <div style={s.sectionTitle}>How do you want to use EasyBuy?</div>
@@ -122,7 +216,7 @@ export default function Landing() {
     </div>
     <div style={s.footerCol}>
         <div style={s.footerColTitle}>Company</div>
-        <span style={s.footerLink}>About us</span>
+        <span style={s.footerLink} onClick={() => setShowAbout(true)}>About us</span>
         <span style={s.footerLink}>Careers</span>
         <span style={s.footerLink}>Press</span>
         <span style={s.footerLink}>Blog</span>
@@ -201,12 +295,31 @@ const s = {
     footerLink: { fontSize: 13, color: '#5a6480', cursor: 'pointer' },
     footerCopy: { fontSize: 12, color: '#5a6480' },
     footerTop: { background: '#0c0f1a', borderTop: '0.5px solid #1e2535', padding: '32px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 20, width: '100%' },
-footerBrand: { display: 'flex', flexDirection: 'column', gap: 8 },
-footerTagline: { fontSize: 13, color: '#5a6480', marginTop: 4 },
-footerContact: { marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 },
-contactLine: { fontSize: 13, color: '#8892a4' },
-footerCol: { display: 'flex', flexDirection: 'column', gap: 10 },
-footerColTitle: { fontSize: 12, color: '#e2e8f0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-socialLink: { fontSize: 13, color: '#5a6480', textDecoration: 'none', cursor: 'pointer', wordBreak: 'break-word' },
-footerBottom: { background: '#0c0f1a', borderTop: '0.5px solid #1e2535', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    footerBrand: { display: 'flex', flexDirection: 'column', gap: 8 },
+    footerTagline: { fontSize: 13, color: '#5a6480', marginTop: 4 },
+    footerContact: { marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 },
+    contactLine: { fontSize: 13, color: '#8892a4' },
+    footerCol: { display: 'flex', flexDirection: 'column', gap: 10 },
+    footerColTitle: { fontSize: 12, color: '#e2e8f0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+    socialLink: { fontSize: 13, color: '#5a6480', textDecoration: 'none', cursor: 'pointer', wordBreak: 'break-word' },
+    footerBottom: { background: '#0c0f1a', borderTop: '0.5px solid #1e2535', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    searchInput: { width: '100%', maxWidth: 480, background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 10, padding: '12px 16px', color: '#e2e8f0', fontSize: 14, marginBottom: 28, outline: 'none', display: 'block', margin: '0 auto 28px' },
+    productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto', textAlign: 'left' },
+    productCard: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.2s' },
+    productImg: { width: '100%', height: 140, objectFit: 'cover' },
+    productImgPlaceholder: { width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, background: '#1a1f2e' },
+    productInfo: { padding: '12px 14px' },
+    productCategory: { fontSize: 11, color: '#7c6ef7', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+    productName: { fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 6 },
+    productPrice: { fontSize: 15, fontWeight: 700, color: '#7c6ef7', marginBottom: 6 },
+    stockTag: { fontSize: 11, padding: '2px 8px', borderRadius: 20, display: 'inline-block' },
+    inStock: { background: '#0f2820', color: '#5dd6a3' },
+    outOfStock: { background: '#2a1018', color: '#f09595' },
+    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    modalBox: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 16, padding: '32px 28px', maxWidth: 520, width: '100%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' },
+    modalClose: { position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: '#5a6480', fontSize: 18, cursor: 'pointer' },
+    modalTitle: { fontSize: 22, fontWeight: 700, color: '#e2e8f0', marginBottom: 16 },
+    modalText: { fontSize: 14, color: '#8892a4', lineHeight: 1.8, marginBottom: 14 },
+    modalStats: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, margin: '20px 0', textAlign: 'center' },
+    modalStat: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px 8px', fontSize: 13, color: '#8892a4', lineHeight: 1.8 }, 
 };
