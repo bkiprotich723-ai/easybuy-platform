@@ -35,7 +35,19 @@ router.post("/forgot-password", async (req, res) => {
         );
 
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-        await sendPasswordResetEmail(email, resetLink);
+
+        // Send email with timeout
+        const emailPromise = sendPasswordResetEmail(email, resetLink);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Email timeout')), 10000)
+        );
+
+        try {
+            await Promise.race([emailPromise, timeoutPromise]);
+        } catch (emailErr) {
+            console.error("Email failed:", emailErr.message);
+            // Still return success to not reveal if email exists
+        }
 
         res.json({ message: "If that email exists, a reset link has been sent." });
 

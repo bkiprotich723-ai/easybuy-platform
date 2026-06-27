@@ -71,7 +71,13 @@ router.post("/stk-push", verifyToken, async (req, res) => {
             },
             { headers: { Authorization: `Bearer ${token}` } }
         );
-
+        if (response.data.ResponseCode !== '0') {
+            return res.status(400).json({ 
+               message: response.data.ResponseDescription || 'STK Push failed' 
+            });
+        }
+        const checkoutRequestId = response.data.CheckoutRequestID;
+        
         const checkoutRequestId = response.data.CheckoutRequestID;
 
         // Save pending transaction
