@@ -2,9 +2,68 @@ const express = require("express");
 const db = require("../db");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { creditReferrerOnActivation } = require("./auth");
-
 const router = express.Router();
+const nodemailer = require("nodemailer");
 
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
+async function sendOrderEmails(seller, buyer, product, order) {
+    const dashboardUrl = "https://easybuy-platform.vercel.app/seller";
+
+    // Email to seller
+    await transporter.sendMail({
+        from: `"EasyBuy" <${process.env.EMAIL_USER}>`,
+        to: seller.email,
+        subject: `🛒 New order received — ${product.name}`,
+        html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0f1117;color:#e2e8f0;padding:32px;border-radius:12px;">
+                <h2 style="color:#5dd6a3;">EasyBuy — New Order!</h2>
+                <p>Hi <b>${seller.name}</b>, you just received a new order.</p>
+                <div style="background:#161b27;border-radius:10px;padding:16px;margin:20px 0;">
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Product:</span> <b>${product.name}</b></div>
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Quantity:</span> <b>${order.quantity}</b></div>
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Order total:</span> <b>KES ${order.amount.toLocaleString()}</b></div>
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Your earnings (90%):</span> <b style="color:#5dd6a3;">KES ${order.sellerAmount.toLocaleString()}</b></div>
+                    <div><span style="color:#8892a4;">Buyer:</span> <b>${buyer.name}</b></div>
+                </div>
+                <p style="color:#8892a4;">Please prepare the order and mark it as delivered once done.</p>
+                <a href="${dashboardUrl}" style="display:block;background:#5dd6a3;color:#0f2820;padding:12px;border-radius:8px;text-align:center;text-decoration:none;font-weight:600;margin-top:16px;">
+                    Go to Seller Dashboard →
+                </a>
+                <p style="color:#5a6480;font-size:12px;margin-top:20px;">Order #${order.id} · EasyBuy Platform</p>
+            </div>
+        `,
+    });
+
+    // Email to buyer
+    await transporter.sendMail({
+        from: `"EasyBuy" <${process.env.EMAIL_USER}>`,
+        to: buyer.email,
+        subject: `✅ Order confirmed — ${product.name}`,
+        html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0f1117;color:#e2e8f0;padding:32px;border-radius:12px;">
+                <h2 style="color:#7c6ef7;">EasyBuy — Order Confirmed!</h2>
+                <p>Hi <b>${buyer.name}</b>, your order has been placed successfully.</p>
+                <div style="background:#161b27;border-radius:10px;padding:16px;margin:20px 0;">
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Product:</span> <b>${product.name}</b></div>
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Quantity:</span> <b>${order.quantity}</b></div>
+                    <div style="margin-bottom:8px;"><span style="color:#8892a4;">Amount paid:</span> <b style="color:#7c6ef7;">KES ${order.amount.toLocaleString()}</b></div>
+                    <div><span style="color:#8892a4;">Order ID:</span> <b>#${order.id}</b></div>
+                </div>
+                <p style="color:#8892a4;">The seller has been notified and will prepare your order shortly.</p>
+                <p style="color:#5a6480;font-size:12px;margin-top:20px;">Thank you for shopping on EasyBuy 🛍</p>
+            </div>
+        `,
+    });
+}
 // ACTIVATION FEES per role
 const ACTIVATION_FEE = { seller: 500, affiliate: 100 };
 
@@ -107,6 +166,28 @@ router.post("/buy", verifyToken, async (req, res) => {
         }
 
         await client.query("COMMIT");
+
+        // Send order emails to seller and buyer (non-blocking — don't fail the order if email fails)
+        try {
+            const sellerResult = await db.query(
+                "SELECT name, email FROM users WHERE id = $1", [product.seller_id]
+            );
+            const buyerResult = await db.query(
+                "SELECT name, email FROM users WHERE id = $1", [buyer_id]
+            );
+            if (sellerResult.rows[0] && buyerResult.rows[0]) {
+                await sendOrderEmails(
+                   sellerResult.rows[0],
+                   buyerResult.rows[0],
+                   product,
+                  { id: orderId, amount, quantity, sellerAmount }
+                );
+            }
+        } catch (emailErr) {
+            console.error("Order email error:", emailErr.message);
+            // Don't fail the request if email fails
+        }
+
         res.json({ message: "Purchase successful", order_id: orderId, amount, quantity });
 
     } catch (err) {
