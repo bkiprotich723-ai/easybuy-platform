@@ -272,7 +272,6 @@ export default function AffiliateDashboard() {
                                 { id: 'overview', label: '📊 Overview' },
                                 { id: 'referrals', label: '👥 Referrals' },
                                 { id: 'earnings', label: '💰 Earnings' },
-                                { id: 'products', label: '🛍️ Products' },
                                 { id: 'profile', label: '👤 Profile' },
                             ].map(t => (
                                 <button key={t.id}
@@ -335,36 +334,6 @@ export default function AffiliateDashboard() {
                             <div>
                                 <div style={s.sectionTitle}>Commission history</div>
                                 <TxTable rows={data.transactions} showType />
-                            </div>
-                        )}
-
-                        {/* Products */}
-                        {activeTab === 'products' && (
-                            <div>
-                                <div style={s.sectionTitle}>Products to promote</div>
-                                <p style={{ color: '#5a6480', fontSize: 13, marginBottom: 20 }}>
-                                    Copy a promo link — when your referrals click it and buy, you earn 10% instantly.
-                                </p>
-                                {data.products?.length === 0
-                                    ? <div style={s.empty}>No products listed yet.</div>
-                                    : <div style={s.productGrid}>
-                                        {data.products.map((p, i) => {
-                                            const promoLink = `${window.location.origin}/product/${p.id}?ref=${data.referral_code}`;
-                                            const label = `product-${p.id}`;
-                                            return (
-                                                <div key={i} style={s.productCard}>
-                                                    {p.image && <img src={p.image} alt={p.name} style={s.productImg} />}
-                                                    <div style={s.productName}>{p.name}</div>
-                                                    <div style={s.productPrice}>KES {parseFloat(p.price).toFixed(2)}</div>
-                                                    <div style={s.productCut}>Your cut: <b style={{ color: '#6ee7b7' }}>KES {(p.price * 0.1).toFixed(2)}</b></div>
-                                                    <button style={s.shareBtn} onClick={() => copyText(promoLink, label)}>
-                                                        {copied === label ? '✅ Copied!' : '🔗 Copy promo link'}
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                }
                             </div>
                         )}
 
