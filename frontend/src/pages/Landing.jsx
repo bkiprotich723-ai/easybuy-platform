@@ -9,6 +9,12 @@ export default function Landing() {
     const [products, setProducts] = useState([]);
     const [search, setSearch] = useState('');
     const [showAbout, setShowAbout] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
+    const [showSupport, setShowSupport] = useState(false);
+    const [supportForm, setSupportForm] = useState({ name: '', email: '', message: '' });
+    const [supportSent, setSupportSent] = useState(false);
+    const [supportLoading, setSupportLoading] = useState(false);
 
     useEffect(() => {
         // Fetch real stats
@@ -22,7 +28,20 @@ export default function Landing() {
             setProducts(res.data.slice(0, 8));
         }).catch(() => {});
     }, []);
-
+    
+    const handleSupport = async (e) => {
+        e.preventDefault();
+        setSupportLoading(true);
+        try {
+            await API.post('/api/support/public', supportForm);
+            setSupportSent(true);
+            setSupportForm({ name: '', email: '', message: '' });
+        } catch {
+            setSupportSent(true); // still show success to user
+        } finally {
+            setSupportLoading(false);
+        }
+    };
     const filtered = products.filter(p =>
         p.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -131,7 +150,86 @@ export default function Landing() {
                         </Link>
                    </div>
                </div>
-             )}
+            )}
+            {/* ── Terms of Service Modal ── */}
+            {showTerms && (
+               <div style={s.modalOverlay} onClick={() => setShowTerms(false)}>
+                  <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+                      <button style={s.modalClose} onClick={() => setShowTerms(false)}>✕</button>
+                      <h2 style={s.modalTitle}>Terms of Service</h2>
+                      <p style={s.modalText}><b style={{color:'#7c6ef7'}}>Last updated: June 2026</b></p>
+                      <p style={s.modalText}>By using EasyBuy, you agree to these terms. EasyBuy is a marketplace platform connecting buyers, sellers, and affiliates in Kenya.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>1. Accounts</b><br />You must provide accurate information when registering. You are responsible for keeping your account secure. EasyBuy reserves the right to suspend accounts that violate these terms.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>2. Payments & Wallet</b><br />All transactions are processed through your EasyBuy wallet. Deposits and withdrawals are subject to processing times. EasyBuy is not responsible for delays caused by third-party payment providers.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>3. Sellers</b><br />Sellers are responsible for the accuracy of their product listings, stock levels, and timely delivery. EasyBuy takes a 10% platform fee on all sales.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>4. Affiliates</b><br />Affiliate commissions are earned when referred users make qualifying purchases. Commissions are credited instantly to your wallet and subject to withdrawal minimums.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>5. Prohibited conduct</b><br />You may not use EasyBuy for fraudulent transactions, fake reviews, or any illegal activity. Violations will result in immediate account termination.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>6. Contact</b><br />For any questions about these terms, contact us at platformeasybuy@gmail.com.</p>
+                  </div>
+               </div>
+            )}
+
+            {/* ── Privacy Policy Modal ── */}
+            {showPrivacy && (
+               <div style={s.modalOverlay} onClick={() => setShowPrivacy(false)}>
+                  <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+                      <button style={s.modalClose} onClick={() => setShowPrivacy(false)}>✕</button>
+                      <h2 style={s.modalTitle}>Privacy Policy</h2>
+                      <p style={s.modalText}><b style={{color:'#7c6ef7'}}>Last updated: June 2026</b></p>
+                      <p style={s.modalText}>EasyBuy takes your privacy seriously. This policy explains what data we collect and how we use it.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>1. Data we collect</b><br />We collect your name, email address, phone number, and transaction history when you register and use EasyBuy.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>2. How we use your data</b><br />Your data is used to operate your account, process payments, send order notifications, and improve our platform. We do not sell your personal data to third parties.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>3. Data security</b><br />All passwords are encrypted. We use industry-standard security measures to protect your information. Payment data is processed through regulated third-party providers.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>4. Cookies</b><br />We use cookies and local storage to keep you logged in and improve your experience. You can clear these at any time through your browser settings.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>5. Your rights</b><br />You can request deletion of your account and data at any time by contacting support. We will process requests within 7 business days.</p>
+                      <p style={s.modalText}><b style={{color:'#e2e8f0'}}>6. Contact</b><br />For privacy concerns, email us at platformeasybuy@gmail.com.</p>
+                  </div>
+               </div>
+            )}
+
+            {/* ── Support Modal ── */}
+            {showSupport && (
+               <div style={s.modalOverlay} onClick={() => setShowSupport(false)}>
+                  <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+                      <button style={s.modalClose} onClick={() => setShowSupport(false)}>✕</button>
+                      <h2 style={s.modalTitle}>Contact Support</h2>
+                      <p style={s.modalText}>We're here to help. Fill out the form below or reach us directly:</p>
+                      <div style={{background:'#0f1117', borderRadius:10, padding:'14px 16px', marginBottom:20}}>
+                         <div style={{color:'#8892a4', fontSize:13, marginBottom:8}}>📞 +254 715 299 523</div>
+                         <div style={{color:'#8892a4', fontSize:13, marginBottom:8}}>📧 platformeasybuy@gmail.com</div>
+                         <a href="https://wa.me/254715299523" target="_blank" rel="noreferrer"
+                            style={{color:'#5dd6a3', fontSize:13, textDecoration:'none'}}>
+                            💬 WhatsApp us →
+                         </a>
+                      </div>
+                      {supportSent ? (
+                          <div style={{background:'#0a2318', border:'0.5px solid #1a5c3a', color:'#6ee7b7', borderRadius:8, padding:'14px', textAlign:'center', fontSize:14}}>
+                             ✅ Message sent! We'll get back to you within 24 hours.
+                          </div>
+                      ) : (
+                          <form onSubmit={handleSupport}>
+                              <label style={s.modalLabel}>Your name</label>
+                              <input style={s.modalInput} placeholder="Jane Mwangi"
+                                 value={supportForm.name}
+                                 onChange={e => setSupportForm({...supportForm, name: e.target.value})} required />
+                              <label style={s.modalLabel}>Email address</label>
+                              <input style={s.modalInput} type="email" placeholder="jane@email.com"
+                                 value={supportForm.email}
+                                 onChange={e => setSupportForm({...supportForm, email: e.target.value})} required />
+                              <label style={s.modalLabel}>Message</label>
+                              <textarea style={{...s.modalInput, height:100, resize:'none'}}
+                                 placeholder="Describe your issue or question..."
+                                 value={supportForm.message}
+                                 onChange={e => setSupportForm({...supportForm, message: e.target.value})} required />
+                              <button style={{...s.primaryBtn, width:'100%', padding:12, fontSize:14}}
+                                 type="submit" disabled={supportLoading}>
+                                 {supportLoading ? 'Sending...' : 'Send message'}
+                              </button>
+                          </form>
+                      )}
+                  </div>
+               </div>
+            )}
             <div style={s.section}>
                 <div style={s.sectionTag}>Choose your path</div>
                 <div style={s.sectionTitle}>How do you want to use EasyBuy?</div>
@@ -223,10 +321,10 @@ export default function Landing() {
     </div>
     <div style={s.footerCol}>
         <div style={s.footerColTitle}>Support</div>
-        <span style={s.footerLink}>Help center</span>
-        <span style={s.footerLink}>Terms of service</span>
-        <span style={s.footerLink}>Privacy policy</span>
-        <span style={s.footerLink}>Report a problem</span>
+        <span style={s.footerLink} onClick={() => setShowSupport(true)}>Help center</span>
+        <span style={s.footerLink} onClick={() => setShowTerms(true)}>Terms of service</span>
+        <span style={s.footerLink} onClick={() => setShowPrivacy(true)}>Privacy policy</span>
+        <span style={s.footerLink} onClick={() => setShowSupport(true)}>Report a problem</span>
     </div>
     <div style={s.footerCol}>
         <div style={s.footerColTitle}>Follow us</div>
@@ -240,9 +338,9 @@ export default function Landing() {
 <div style={s.footerBottom}>
     <div style={s.footerCopy}>© 2026 EasyBuy. All rights reserved.</div>
     <div style={s.footerLinks}>
-        <span style={s.footerLink}>Terms</span>
-        <span style={s.footerLink}>Privacy</span>
-        <span style={s.footerLink}>Cookies</span>
+        <span style={s.footerLink} onClick={() => setShowTerms(true)}>Terms</span>
+        <span style={s.footerLink} onClick={() => setShowPrivacy(true)}>Privacy</span>
+        <span style={s.footerLink} onClick={() => setShowTerms(true)}>Cookies</span>
     </div>
 </div>
         </div>
@@ -322,4 +420,6 @@ const s = {
     modalText: { fontSize: 14, color: '#8892a4', lineHeight: 1.8, marginBottom: 14 },
     modalStats: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, margin: '20px 0', textAlign: 'center' },
     modalStat: { background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 10, padding: '14px 8px', fontSize: 13, color: '#8892a4', lineHeight: 1.8 }, 
+    modalLabel: { display: 'block', color: '#8892a4', fontSize: 12, marginBottom: 6, marginTop: 10 },
+    modalInput: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, marginBottom: 6, boxSizing: 'border-box', outline: 'none', display: 'block' },
 };

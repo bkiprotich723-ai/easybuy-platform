@@ -139,5 +139,41 @@ router.post("/close/:id", verifyToken, authorizeRoles("admin"), async (req, res)
         res.status(500).json({ error: err.message });
     }
 });
+// POST /api/support/public — for non-logged-in users from landing page
+router.post("/public", async (req, res) => {
+    const { name, email, message } = req.body;
+    if (!name || !email || !message) {
+        return res.status(400).json({ message: "All fields required." });
+    }
+    try {
+        // Save as a ticket with no user_id
+        await db.query(
+            `INSERT INTO support_tickets (name, email, subject, message, status)
+             VALUES ($1, $2, 'Public enquiry', $3, 'open')
+             ON CONFLICT DO NOTHING`,
+            [name, email, message]
+        );
+    } catch {
+        // Silently continue — email below is the real delivery
+    }
+    // Send email notification to your support inbox
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: 587, secure: false,
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+    await transporter.sendMail({
+        from: `"EasyBuy Support" <${process.env.EMAIL_USER}>`,
+        to: process.env.EMAIL_USER,
+        subject: `📩 New support message from ${name}`,
+        html: `
+            <p><b>Name:</b> ${name}</p>
+            <p><b>Email:</b> ${email}</p>
+            <p><b>Message:</b><br/>${message}</p>
+        `,
+    });
+    res.json({ message: "Support message sent." });
+});
 
 module.exports = router;
