@@ -125,6 +125,13 @@ router.get("/all", verifyToken, authorizeRoles("admin"), async (req, res) => {
              LEFT JOIN users u ON t.user_id = u.id
              ORDER BY t.created_at DESC`
         );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// CLOSE TICKET (ADMIN)
 
 // CLOSE TICKET (ADMIN)
 router.post("/close/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
