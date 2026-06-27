@@ -115,9 +115,9 @@ export default function Landing() {
         <img src={logo} alt="EasyBuy" style={{height: 28, objectFit: 'contain'}} />
         <div style={s.footerTagline}>Kenya's fastest growing marketplace</div>
         <div style={s.footerContact}>
-            <div style={s.contactLine}>📞 +254 700 000 000</div>
-            <div style={s.contactLine}>📧 support@easybuy.co.ke</div>
-            <div style={s.contactLine}>💬 WhatsApp: +254 700 000 000</div>
+            <div style={s.contactLine}>📞 +254 715 299 523</div>
+            <div style={s.contactLine}>📧 platformeasybuy@gmail.com</div>
+            <div style={s.contactLine}>💬 WhatsApp: +254 715 299 523</div>
         </div>
     </div>
     <div style={s.footerCol}>
@@ -139,7 +139,7 @@ export default function Landing() {
         <a href="https://facebook.com" target="_blank" rel="noreferrer" style={s.socialLink}>📘 Facebook</a>
         <a href="https://instagram.com" target="_blank" rel="noreferrer" style={s.socialLink}>📸 Instagram</a>
         <a href="https://twitter.com" target="_blank" rel="noreferrer" style={s.socialLink}>🐦 Twitter / X</a>
-        <a href="https://wa.me/254700000000" target="_blank" rel="noreferrer" style={s.socialLink}>💬 WhatsApp</a>
+        <a href="https://wa.me/254715299523" target="_blank" rel="noreferrer" style={s.socialLink}>💬 WhatsApp</a>
         <a href="https://tiktok.com" target="_blank" rel="noreferrer" style={s.socialLink}>🎵 TikTok</a>
     </div>
 </div>
