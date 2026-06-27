@@ -13,6 +13,8 @@ export default function BuyerDashboard() {
     const [activeTab, setActiveTab] = useState('shop');
     const [tickets, setTickets] = useState([]);
     const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
+    const [selectedTicketId, setSelectedTicketId] = useState(null);
+    const [ticketThread, setTicketThread] = useState(null);
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [depositAmount, setDepositAmount] = useState('');
     const [mpesaPhone, setMpesaPhone] = useState('');
@@ -318,15 +320,64 @@ useEffect(() => {
                         <div style={s.panel}>
                             {tickets.length === 0 && <p style={{color:'#5a6480', padding:16}}>No tickets yet.</p>}
                             {tickets.map(t => (
-                                <div key={t.id} style={s.orderRow}>
-                                    <div>
-                                        <div style={s.orderName}>{t.subject}</div>
-                                        <div style={{color:'#8892a4', fontSize:13, marginTop:2}}>{t.message}</div>
-                                        <div style={s.orderDate}>{new Date(t.created_at).toLocaleDateString()}</div>
-                                    </div>
-                                    <div style={{...s.statusBadge, ...(t.status === 'closed' ? s.badgeDelivered : s.badgePending)}}>
-                                        {t.status}
-                                    </div>
+                                <div key={t.id} style={{...s.orderRow, flexDirection:'column', alignItems:'stretch', cursor:'pointer'}}
+                                     onClick={async () => {
+                                         if (selectedTicketId === t.id) { setSelectedTicketId(null); setTicketThread(null); return; }
+                                         setSelectedTicketId(t.id);
+                                         try {
+                                             const res = await API.get(`/api/support/ticket/${t.id}`);
+                                             setTicketThread(res.data);
+                                         } catch (err) { console.error(err); }
+                                     }}>
+                                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                         <div>
+                                             <div style={s.orderName}>{t.subject}</div>
+                                             <div style={s.orderDate}>{new Date(t.created_at).toLocaleDateString()}</div>
+                                         </div>
+                                         <div style={{...s.statusBadge, ...(t.status === 'closed' ? s.badgeDelivered : s.badgePending)}}>
+                                             {t.status}
+                                         </div>
+                                     </div>
+
+                                     {selectedTicketId === t.id && ticketThread && (
+                                         <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:10}}
+                                             onClick={e => e.stopPropagation()}>
+                                             <div style={{background:'#1e2535', borderRadius:8, padding:'10px 12px'}}>
+                                                 <div style={{fontSize:12, color:'#5a6480', marginBottom:4}}>Your message</div>
+                                                 <div style={{fontSize:13, color:'#a3adc2'}}>{t.message}</div>
+                                             </div>
+                                             {ticketThread.replies.map(r => (
+                                                 <div key={r.id} style={{
+                                                      background: r.sender_role === 'admin' ? '#1a1f35' : '#1e2535',
+                                                      borderRadius: 8, padding: '10px 12px',
+                                                      borderLeft: r.sender_role === 'admin' ? '2px solid #f97066' : '2px solid #5a6480'
+                                                 }}>
+                                                      <div style={{fontSize:12, color: r.sender_role === 'admin' ? '#f97066' : '#5a6480', marginBottom:4}}>
+                                                         {r.sender_role === 'admin' ? '🛡 Support Team' : 'You'}
+                                                      </div>
+                                                      <div style={{fontSize:13, color:'#a3adc2'}}>{r.message}</div>
+                                                      <div style={{fontSize:11, color:'#5a6480', marginTop:4}}>{new Date(r.created_at).toLocaleString()}</div>
+                                                 </div>
+                                             ))}
+                                             {t.status === 'open' && (
+                                                 <form onSubmit={async (e) => {
+                                                      e.preventDefault();
+                                                      const msg = e.target.reply.value;
+                                                      if (!msg.trim()) return;
+                                                      try {
+                                                          await API.post(`/api/support/ticket/${t.id}/reply`, { message: msg });
+                                                          e.target.reset();
+                                                          const res = await API.get(`/api/support/ticket/${t.id}`);
+                                                          setTicketThread(res.data);
+                                                      } catch (err) { console.error(err); }
+                                                 }} style={{display:'flex', gap:8}}>
+                                                      <input name="reply" style={{...s.input, marginBottom:0, flex:1}}
+                                                          placeholder="Type a reply..." />
+                                                      <button style={s.submitBtn} type="submit">Send</button>
+                                                 </form>
+                                             )}
+                                         </div>
+                                     )}
                                 </div>
                             ))}
                         </div>

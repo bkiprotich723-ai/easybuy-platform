@@ -11,6 +11,10 @@ export default function AdminDashboard() {
     const [orders, setOrders] = useState([]);
     const [withdrawals, setWithdrawals] = useState([]);
     const [tickets, setTickets] = useState([]);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+    const [ticketReplies, setTicketReplies] = useState([]);
+    const [replyMessage, setReplyMessage] = useState('');
+    const [loadingTicket, setLoadingTicket] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [message, setMessage] = useState('');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -63,7 +67,28 @@ export default function AdminDashboard() {
             setTickets(res.data);
         } catch (err) { console.error(err); }
     };
-
+    const openTicket = async (ticket) => {
+        setLoadingTicket(true);
+        setSelectedTicket(ticket);
+        try {
+            const res = await API.get(`/api/support/ticket/${ticket.id}`);
+            setSelectedTicket(res.data.ticket);
+            setTicketReplies(res.data.replies);
+        } catch (err) { console.error(err); }
+        finally { setLoadingTicket(false); }
+    };
+    const handleReply = async (e) => {
+        e.preventDefault();
+        if (!replyMessage.trim()) return;
+        try {
+            await API.post(`/api/support/ticket/${selectedTicket.id}/reply`, { message: replyMessage });
+            setReplyMessage('');
+            openTicket(selectedTicket);
+            fetchTickets();
+        } catch (err) {
+            setMessage('❌ Failed to send reply');
+        }
+    };
     const fetchProfile = async () => {
         try {
             const res = await API.get('/api/profile');
@@ -360,25 +385,101 @@ const handlePromoteAdmin = async (id) => {
                     {activeTab === 'support' && (
                         <div>
                             <div style={s.pageTitle}>Support Tickets</div>
-                            {tickets.map(t => (
-                                <div key={t.id} style={s.card}>
-                                    <div style={{flex:1}}>
-                                        <div style={s.cardTitle}>{t.subject}</div>
-                                        <div style={s.cardSub}>{t.user_name} · {t.user_email}</div>
-                                        <div style={{color:'#8892a4', fontSize:13, marginTop:4}}>{t.message}</div>
-                                        <div style={s.cardSub}>{new Date(t.created_at).toLocaleDateString()}</div>
-                                    </div>
-                                    <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
-                                        <span style={{...s.statusBadge, ...(t.status === 'closed' ? s.badgeActive : s.badgePending)}}>
-                                            {t.status}
-                                        </span>
-                                        {t.status === 'open' && (
-                                            <button style={s.approveBtn} onClick={() => handleCloseTicket(t.id)}>Close</button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {tickets.length === 0 && <p style={s.empty}>No tickets yet.</p>}
+
+                            {selectedTicket ? (
+                               <div>
+                                   <button style={{...s.approveBtn, marginBottom:16}}
+                                       onClick={() => { setSelectedTicket(null); setTicketReplies([]); }}>
+                                       ← Back to tickets
+                                   </button>
+
+                                   <div style={s.ticketHeader}>
+                                       <div>
+                                           <div style={s.cardTitle}>{selectedTicket.subject}</div>
+                                           <div style={s.cardSub}>{selectedTicket.user_name} · {selectedTicket.user_email}</div>
+                                           <div style={s.cardSub}>{new Date(selectedTicket.created_at).toLocaleDateString()}</div>
+                                       </div>
+                                       <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                           <span style={{...s.statusBadge, ...(selectedTicket.status === 'closed' ? s.badgeActive : s.badgePending)}}>
+                                               {selectedTicket.status}
+                                            </span>
+                                            {selectedTicket.status === 'open' && (
+                                                <button style={s.approveBtn} onClick={async () => {
+                                                   await handleCloseTicket(selectedTicket.id);
+                                                   setSelectedTicket({...selectedTicket, status:'closed'});
+                                                }}>Close ticket</button>
+                                            )}
+                                       </div>
+                                   </div>
+
+                                   <div style={s.conversation}>
+                                       <div style={s.userMsg}>
+                                           <div style={s.msgAvatar}>{selectedTicket.user_name?.charAt(0).toUpperCase()}</div>
+                                           <div style={s.msgBubble}>
+                                               <div style={s.msgSender}>{selectedTicket.user_name} <span style={s.msgRole}>user</span></div>
+                                               <div style={s.msgText}>{selectedTicket.message}</div>
+                                               <div style={s.msgTime}>{new Date(selectedTicket.created_at).toLocaleString()}</div>
+                                           </div>
+                                       </div>
+
+                                       {loadingTicket && <div style={{color:'#5a6480', fontSize:13, padding:16}}>Loading...</div>}
+
+                                       {ticketReplies.map(r => (
+                                          <div key={r.id} style={r.sender_role === 'admin' ? s.adminMsgRow : s.userMsg}>
+                                             <div style={r.sender_role === 'admin' ? s.adminAvatar : s.msgAvatar}>
+                                                {r.sender_role === 'admin' ? '🛡' : selectedTicket.user_name?.charAt(0).toUpperCase()}
+                                             </div>
+                                             <div style={r.sender_role === 'admin' ? s.adminBubble : s.msgBubble}>
+                                                <div style={s.msgSender}>
+                                                   {r.sender_role === 'admin' ? 'Support Team' : selectedTicket.user_name}
+                                                   <span style={s.msgRole}>{r.sender_role}</span>
+                                                </div>
+                                                <div style={s.msgText}>{r.message}</div>
+                                                <div style={s.msgTime}>{new Date(r.created_at).toLocaleString()}</div>
+                                             </div>
+                                          </div>
+                                        ))}
+                                   </div>
+
+                                   {selectedTicket.status === 'open' && (
+                                       <form onSubmit={handleReply} style={s.replyForm}>
+                                           <textarea style={s.replyInput}
+                                               placeholder="Type your reply..."
+                                               value={replyMessage}
+                                               onChange={e => setReplyMessage(e.target.value)}
+                                               rows={3} required />
+                                           <button style={s.approveBtn} type="submit">Send Reply</button>
+                                       </form>
+                                    )}
+                               </div>
+                            ) : (
+                               <div>
+                                   {tickets.length === 0 && <p style={s.empty}>No tickets yet.</p>}
+                                   {tickets.map(t => (
+                                       <div key={t.id} style={{...s.card, cursor:'pointer'}}
+                                            onClick={() => openTicket(t)}>
+                                            <div style={{flex:1}}>
+                                                 <div style={s.cardTitle}>{t.subject}</div>
+                                                 <div style={s.cardSub}>{t.user_name} · {t.user_email}</div>
+                                                 <div style={{color:'#8892a4', fontSize:13, marginTop:4}}>
+                                                     {t.message?.substring(0, 80)}...
+                                                 </div>
+                                                 <div style={s.cardSub}>{new Date(t.created_at).toLocaleDateString()}</div>
+                                            </div>
+                                            <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6}}>
+                                                 <span style={{...s.statusBadge, ...(t.status === 'closed' ? s.badgeActive : s.badgePending)}}>
+                                                     {t.status}
+                                                 </span>
+                                                 {parseInt(t.reply_count) > 0 && (
+                                                     <span style={{fontSize:11, color:'#5a6480'}}>
+                                                         💬 {t.reply_count} {parseInt(t.reply_count) === 1 ? 'reply' : 'replies'}
+                                                     </span>
+                                                 )}
+                                            </div>
+                                       </div>
+                                    ))}
+                               </div>
+                            )}
                         </div>
                     )}
                     {activeTab === 'admins' && (
@@ -558,4 +659,18 @@ const s = {
     profileTabActive: { color: '#e2e8f0', borderBottom: '2px solid #f97066' },
     success: { background: '#0f2820', border: '0.5px solid #2a5048', color: '#5dd6a3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
     error: { background: '#2a1018', border: '0.5px solid #7c2020', color: '#f09595', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, cursor: 'pointer' },
+    ticketHeader: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 },
+    conversation: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 16 },
+    userMsg: { display: 'flex', gap: 10, alignItems: 'flex-start' },
+    adminMsgRow: { display: 'flex', gap: 10, alignItems: 'flex-start', flexDirection: 'row-reverse' },
+    msgAvatar: { width: 36, height: 36, borderRadius: '50%', background: '#1e2535', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#7c9ef7', flexShrink: 0 },
+    adminAvatar: { width: 36, height: 36, borderRadius: '50%', background: '#2a1018', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 },
+    msgBubble: { background: '#1e2535', borderRadius: '0 12px 12px 12px', padding: '10px 14px', maxWidth: '75%' },
+    adminBubble: { background: '#1a1f35', borderRadius: '12px 0 12px 12px', padding: '10px 14px', maxWidth: '75%' },
+    msgSender: { fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 },
+    msgRole: { color: '#5a6480', fontSize: 11, fontWeight: 400, marginLeft: 6 },
+    msgText: { fontSize: 13, color: '#a3adc2', lineHeight: 1.6 },
+    msgTime: { fontSize: 11, color: '#5a6480', marginTop: 6 },
+    replyForm: { background: '#161b27', border: '0.5px solid #2d3348', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 },
+    replyInput: { width: '100%', background: '#0f1117', border: '0.5px solid #2d3348', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif' },
 };
