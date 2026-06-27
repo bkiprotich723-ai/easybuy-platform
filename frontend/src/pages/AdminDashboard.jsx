@@ -174,27 +174,27 @@ export default function AdminDashboard() {
     };
 
     const handleCreateAdmin = async (e) => {
-    e.preventDefault();
-    try {
-        await API.post('/api/admin/create-admin', adminForm);
-        setMessage('✅ Admin created successfully');
-        setAdminForm({ name: '', email: '', password: '' });
-        fetchUsers();
-    } catch (err) {
-        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-    }
-};
+        e.preventDefault();
+        try {
+            await API.post('/api/admin/create-admin', adminForm);
+            setMessage('✅ Admin created successfully');
+            setAdminForm({ name: '', email: '', password: '' });
+            fetchUsers();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
 
-const handlePromoteAdmin = async (id) => {
-    if (!window.confirm('Promote this user to admin?')) return;
-    try {
-        await API.post(`/api/admin/users/${id}/promote`);
-        setMessage('✅ User promoted to admin');
-        fetchUsers();
-    } catch (err) {
-        setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
-    }
-};
+    const handlePromoteAdmin = async (id) => {
+        if (!window.confirm('Promote this user to admin?')) return;
+        try {
+            await API.post(`/api/admin/users/${id}/promote`);
+            setMessage('✅ User promoted to admin');
+            fetchUsers();
+        } catch (err) {
+            setMessage('❌ ' + (err.response?.data?.message || 'Failed'));
+        }
+    };
     const handleAddUser = async (e) => {
         e.preventDefault();
         setAddingUser(true);
@@ -210,7 +210,6 @@ const handlePromoteAdmin = async (id) => {
         }
     };
 
-    const handleUpdateProfile = async (e) => {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
