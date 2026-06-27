@@ -42,9 +42,11 @@ router.get("/my-tickets", verifyToken, async (req, res) => {
 router.get("/ticket/:id", verifyToken, async (req, res) => {
     try {
         const ticket = await db.query(
-            `SELECT t.*, u.name as user_name, u.email as user_email
+            `SELECT t.*,
+             COALESCE(u.name, t.name, 'Guest') as user_name,
+             COALESCE(u.email, t.email, 'No email') as user_email
              FROM support_tickets t
-             JOIN users u ON t.user_id = u.id
+             LEFT JOIN users u ON t.user_id = u.id
              WHERE t.id = $1`,
             [req.params.id]
         );
@@ -115,17 +117,14 @@ router.post("/ticket/:id/reply", verifyToken, async (req, res) => {
 router.get("/all", verifyToken, authorizeRoles("admin"), async (req, res) => {
     try {
         const result = await db.query(
-            `SELECT t.*, u.name as user_name, u.email as user_email,
+            `SELECT t.*,
+             COALESCE(u.name, t.name, 'Guest') as user_name,
+             COALESCE(u.email, t.email, 'No email') as user_email,
              (SELECT COUNT(*) FROM support_replies WHERE ticket_id = t.id) as reply_count
              FROM support_tickets t
-             JOIN users u ON t.user_id = u.id
+             LEFT JOIN users u ON t.user_id = u.id
              ORDER BY t.created_at DESC`
         );
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // CLOSE TICKET (ADMIN)
 router.post("/close/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
