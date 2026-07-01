@@ -1,34 +1,11 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,        // STARTTLS — far more reliable on cloud hosts than port 465
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 15000,   // 15s to establish connection
-    greetingTimeout: 10000,     // 10s for server greeting
-    socketTimeout: 20000,       // 20s for socket inactivity
-});
-
-// Verify SMTP on startup — errors appear immediately in Render logs
-transporter.verify((err) => {
-    if (err) {
-        console.error("❌ SMTP connection failed:", err.message);
-    } else {
-        console.log("✅ SMTP ready — mailer connected to Gmail");
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendPasswordResetEmail(email, resetLink) {
     try {
-        await transporter.sendMail({
-            from: `"EasyBuy Platform" <${process.env.EMAIL_USER}>`,
+        const { data, error } = await resend.emails.send({
+            from: 'EasyBuy <onboarding@resend.dev>', // use this until you verify a domain
             to: email,
             subject: "Reset your EasyBuy password",
             html: `
@@ -52,7 +29,13 @@ async function sendPasswordResetEmail(email, resetLink) {
                 </div>
             `
         });
-        console.log("✅ Reset email sent to:", email);
+
+        if (error) {
+            console.error("❌ Resend error:", error);
+            throw new Error(error.message);
+        }
+
+        console.log("✅ Reset email sent to:", email, "| ID:", data.id);
     } catch (err) {
         console.error("❌ Email send error:", err.message);
         throw err;
