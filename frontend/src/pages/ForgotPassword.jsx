@@ -31,7 +31,7 @@ export default function ForgotPassword() {
 
                 {sent ? (
                     <div style={s.success}>
-                        Reset link sent successfully
+                        ✅ Reset link sent successfully 
                         <br /><br />
                         Check your inbox at <b>{email}</b>. The link expires in 1 hour.
                     </div>
