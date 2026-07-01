@@ -39,7 +39,7 @@ router.post("/forgot-password", async (req, res) => {
         // Send email with timeout
         const emailPromise = sendPasswordResetEmail(email, resetLink);
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Email timeout')), 10000)
+            setTimeout(() => reject(new Error('Email timeout')), 25000)
         );
 
         try {

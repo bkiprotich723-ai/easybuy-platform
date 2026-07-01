@@ -2,14 +2,26 @@ const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,        // STARTTLS — far more reliable on cloud hosts than port 465
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
         rejectUnauthorized: false
+    },
+    connectionTimeout: 15000,   // 15s to establish connection
+    greetingTimeout: 10000,     // 10s for server greeting
+    socketTimeout: 20000,       // 20s for socket inactivity
+});
+
+// Verify SMTP on startup — errors appear immediately in Render logs
+transporter.verify((err) => {
+    if (err) {
+        console.error("❌ SMTP connection failed:", err.message);
+    } else {
+        console.log("✅ SMTP ready — mailer connected to Gmail");
     }
 });
 
@@ -27,7 +39,7 @@ async function sendPasswordResetEmail(email, resetLink) {
                         You requested a password reset. Click the button below to set a new password.
                         This link expires in <b style="color:#f7c948">1 hour</b>.
                     </p>
-                    <a href="${resetLink}" 
+                    <a href="${resetLink}"
                        style="display:inline-block;background:#7c6ef7;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;margin-bottom:24px">
                         Reset Password
                     </a>
@@ -40,9 +52,9 @@ async function sendPasswordResetEmail(email, resetLink) {
                 </div>
             `
         });
-        console.log("Reset email sent to:", email);
+        console.log("✅ Reset email sent to:", email);
     } catch (err) {
-        console.error("Email send error:", err);
+        console.error("❌ Email send error:", err.message);
         throw err;
     }
 }
